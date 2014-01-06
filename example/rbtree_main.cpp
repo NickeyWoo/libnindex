@@ -77,15 +77,18 @@ struct KeySerialization<Key>
 };
 
 #define INSERT_NUM 30
+#define DELETE_NUM 15
 
 int main(int argc, char* argv[])
 {
+/*
 	FileStorage storage;
 	FileStorage::OpenStorage(&storage, "rbtree.data", RBTree<Key, uint32_t>::GetBufferSize(INSERT_NUM));
 	RBTree<Key, uint32_t> rbtree = RBTree<Key, uint32_t>::LoadRBTree(storage);
+*/
+	RBTree<Key, uint32_t> rbtree = RBTree<Key, uint32_t>::CreateRBTree(INSERT_NUM);
 
-//	RBTree<Key, uint32_t> rbtree = RBTree<Key, uint32_t>::CreateRBTree(INSERT_NUM);
-
+	Key delKeyBuffer[DELETE_NUM];
 	for(int i=0; i<INSERT_NUM; ++i)
 	{
 		Key key;
@@ -94,10 +97,22 @@ int main(int argc, char* argv[])
 		key.Timestamp = random() % 1000;
 		key.Count = random() % 100;
 
+		if(i % 2 == 0)
+			memcpy(&delKeyBuffer[i/2], &key, sizeof(Key));
+
 		uint32_t* pValue = rbtree.Hash(key, true);
 		*pValue = i;
 	}
 
+	printf("\nBefore:\n");
+	rbtree.DumpTree();
+
+	for(int i=0; i<DELETE_NUM; ++i)
+	{
+		rbtree.Clear(delKeyBuffer[i]);
+	}
+
+	printf("\nAfter:\n");
 	rbtree.DumpTree();
 
 	printf("\n//////////////////////////////////////////////////////////////////\nAll Data:\n");
@@ -130,7 +145,8 @@ int main(int argc, char* argv[])
 	if(pValue)
 		printf("End Next:%02u Key:(%s)\n", iter.Index, KeySerialization<Key>::Serialization(key).c_str());
 
-	storage.Release();
+	rbtree.Delete();
+	// storage.Release();
 	return 0;
 }
 
