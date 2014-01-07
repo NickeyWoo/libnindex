@@ -144,7 +144,7 @@ public:
 	{
 		uint32_t count = 0;
 
-		IndexT nodeIndex = iter->Index;
+		IndexT nodeIndex = iter.Index;
 		RBTreeNode<KeyT, ValueT, IndexT>* node = m_NodeBlockTable[nodeIndex];
 		while(node != NULL)
 		{

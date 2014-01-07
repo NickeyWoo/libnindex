@@ -104,7 +104,10 @@ int main(int argc, char* argv[])
 		*pValue = i;
 	}
 
-	printf("\nBefore:\n");
+	Key maxKey;
+	rbtree.Maximum(&maxKey);
+
+	printf("\nBefore:(%u)\n", rbtree.Count(rbtree.Iterator(maxKey)));
 	rbtree.DumpTree();
 
 	for(int i=0; i<DELETE_NUM; ++i)
@@ -112,7 +115,8 @@ int main(int argc, char* argv[])
 		rbtree.Clear(delKeyBuffer[i]);
 	}
 
-	printf("\nAfter:\n");
+	rbtree.Maximum(&maxKey);
+	printf("\nAfter:(%u)\n", rbtree.Count(rbtree.Iterator(maxKey)));
 	rbtree.DumpTree();
 
 	printf("\n//////////////////////////////////////////////////////////////////\nAll Data:\n");
@@ -133,6 +137,7 @@ int main(int argc, char* argv[])
 	Key vkeyEnd = {2, 0, 0};
 	RBTree<Key, uint32_t>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
 
+	printf("Count:%u\n", rbtree.Count(iter, iterEnd));
 	while((pValue = rbtree.Next(&iter, &key)))
 	{
 		printf("Next:%02u End:%02u Key:(%s)\n", iter.Index, iterEnd.Index, KeySerialization<Key>::Serialization(key).c_str());
@@ -140,10 +145,6 @@ int main(int argc, char* argv[])
 		if(iter == iterEnd)
 			break;
 	}
-
-	pValue = rbtree.Next(&iterEnd, &key);
-	if(pValue)
-		printf("End Next:%02u Key:(%s)\n", iter.Index, KeySerialization<Key>::Serialization(key).c_str());
 
 	rbtree.Delete();
 	// storage.Release();
