@@ -1,5 +1,5 @@
-# n-index
-nindex is common data storage and index library.
+# N-Index Library
+N-Index is common data storage and index library.
 
 ## Index Struct ##
 * **HashTable<KeyT, ValueT>**
@@ -69,12 +69,74 @@ nindex is common data storage and index library.
 
 **BlockTable** [blocktable_main.cpp][5]
 ```c++
-	// see example
+	struct Tree {
+		BlockTable<TreeNode, void>::BlockIndexType RootIndex;
+	};
+	struct TreeNode {
+		uint64_t Key;
+		uint32_t Value;
+
+		BlockTable<TreeNode, void>::BlockIndexType ParentIndex;
+		BlockTable<TreeNode, void>::BlockIndexType LeftIndex;
+		BlockTable<TreeNode, void>::BlockIndexType RightIndex;
+	};
+
+	// load blocktable
+	BlockTable<TreeNode, Tree> bt = BlockTable<TreeNode, Tree>::LoadBlockTable(...);
+
+	BlockTable<TreeNode, void>::BlockIndexType newNodeIndex = bt.AllocateBlock();
+	TreeNode* pNode = bt[newNodeIndex];
+
+	Tree* pTree = bt.GetHead();
+	bt.ReleaseBlock(pTree->RootIndex);
 ```
 
 **RBTree** [rbtree_main.cpp][6]
 ```c++
-	// see example
+	struct Key {
+		uint32_t Uin;
+		uint32_t Timestamp;
+	} __attribute__((packed));
+	
+	template<>
+	struct KeyCompare<Key>
+	{
+		static int Compare(Key key1, Key key2)
+		{
+			if(key1.Uin > key2.Uin)
+				return 1;
+			else if(key1.Uin < key2.Uin)
+				return -1;
+			else
+				if(key2.Timestamp > key1.Timestamp)
+					return 1;
+				else if(key2.Timestamp < key1.Timestamp)
+					return -1;
+				else
+					return 0;
+		}
+	};
+				
+	RBTree<Key, uint32_t> rbtree = RBTree<Key, uint32_t>::CreateRBTree(INSERT_NUM);
+
+	// like SQL:
+	// SELECT * FROM t WHERE Uin=1000 ORDER BY Timestamp DESC;
+
+	Key vkeyBegin = {1000, 0xffffffff};
+	Key vkeyEnd = {1001, 0};
+	RBTree<Key, uint32_t>::RBTreeIterator iter = rbtree.Iterator(vkeyBegin);
+	RBTree<Key, uint32_t>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
+
+	uint32_t* pValue = NULL;
+	Key key;
+	while((pValue = rbtree.Next(&iter, &key)))
+	{
+		printf("Key:(uin:%u, timestamp:%u), Value:%u\n", key.Uin, key.Timestamp, *pValue);
+		if(iter == iterEnd)
+			break;
+	}
+
+	rbtree.Delete();
 ```
 
 [More examples...][1]
