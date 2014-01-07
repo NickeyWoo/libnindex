@@ -128,7 +128,7 @@ N-Index is common data index and storage library.
 	RBTree<Key, uint32_t>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
 	
 	// like SQL:
-	// SELECT COUNT(*) FROM t WHERE Uin=1000 ORDER BY Timestamp DESC;
+	// SELECT COUNT(*) FROM t WHERE Uin=1000;
 	printf("Count: %u\n", rbtree.Count(iter, iterEnd));
 
 	uint32_t* pValue = NULL;
