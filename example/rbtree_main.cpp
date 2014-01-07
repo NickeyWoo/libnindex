@@ -71,13 +71,13 @@ struct KeySerialization<Key>
 		uint32_t uin = key.Uin;
 		uint32_t timestamp = key.Timestamp;
 		uint32_t count = key.Count;
-		std::string str = (boost::format("uin:%u timestamp:%03u count:%02u") % uin % timestamp % count).str();
+		std::string str = (boost::format("uin:%u timestamp:%02u count:%02u") % uin % timestamp % count).str();
 		return str;
 	}
 };
 
-#define INSERT_NUM 30
-#define DELETE_NUM 15
+#define INSERT_NUM 40
+#define DELETE_NUM 20
 
 int main(int argc, char* argv[])
 {
@@ -94,8 +94,8 @@ int main(int argc, char* argv[])
 		Key key;
 		memset(&key, 0, sizeof(Key));
 		key.Uin = random() % 3;
-		key.Timestamp = random() % 1000;
-		key.Count = random() % 100;
+		key.Timestamp = random() % 10;
+		key.Count = i;
 
 		if(i % 2 == 0)
 			memcpy(&delKeyBuffer[i/2], &key, sizeof(Key));
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 	Key maxKey;
 	rbtree.Maximum(&maxKey);
 
-	printf("\nBefore:(%u)\n", rbtree.Count(rbtree.Iterator(maxKey)));
+	printf("\nBefore:[%s](%u)\n", KeySerialization<Key>::Serialization(maxKey).c_str(), rbtree.Count(rbtree.Iterator(maxKey)));
 	rbtree.DumpTree();
 
 	for(int i=0; i<DELETE_NUM; ++i)
@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
 	}
 
 	rbtree.Maximum(&maxKey);
-	printf("\nAfter:(%u)\n", rbtree.Count(rbtree.Iterator(maxKey)));
+	printf("\nAfter:[%s](%u)\n", KeySerialization<Key>::Serialization(maxKey).c_str(), rbtree.Count(rbtree.Iterator(maxKey)));
 	rbtree.DumpTree();
 
 	printf("\n//////////////////////////////////////////////////////////////////\nAll Data:\n");
@@ -129,21 +129,18 @@ int main(int argc, char* argv[])
 		printf("Next:%02u Key:(%s)\n", iter.Index, KeySerialization<Key>::Serialization(key).c_str());
 	}
 
-	printf("\n//////////////////////////////////////////////////////////////////\nSELECT * FROM t WHERE Uin=1 AND Timestamp>=700 ORDER BY Count DESC;\n");
+	printf("\n//////////////////////////////////////////////////////////////////\nSELECT * FROM t WHERE Uin=1 AND Timestamp>=2 ORDER BY Count DESC;\n");
 
-	Key vkeyBegin = {1, 700, 0xffffffff};
+	Key vkeyBegin = {1, 2, 0xffffffff};
 	iter = rbtree.Iterator(vkeyBegin);
 
 	Key vkeyEnd = {2, 0, 0};
 	RBTree<Key, uint32_t>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
 
 	printf("Count:%u\n", rbtree.Count(iter, iterEnd));
-	while((pValue = rbtree.Next(&iter, &key)))
+	while(iter != iterEnd && (pValue = rbtree.Next(&iter, &key)))
 	{
 		printf("Next:%02u End:%02u Key:(%s)\n", iter.Index, iterEnd.Index, KeySerialization<Key>::Serialization(key).c_str());
-
-		if(iter == iterEnd)
-			break;
 	}
 
 	rbtree.Delete();
