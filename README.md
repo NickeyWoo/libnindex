@@ -133,11 +133,9 @@ N-Index is common data index and storage library.
 
 	uint32_t* pValue = NULL;
 	Key key;
-	while((pValue = rbtree.Next(&iter, &key)))
+	while(iter != iterEnd && (pValue = rbtree.Next(&iter, &key)))
 	{
 		printf("Key:(uin:%u, timestamp:%u), Value:%u\n", key.Uin, key.Timestamp, *pValue);
-		if(iter == iterEnd)
-			break;
 	}
 
 	rbtree.Delete();
