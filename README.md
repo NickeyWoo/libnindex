@@ -1,5 +1,5 @@
 # N-Index Library
-N-Index is common data storage and index library.
+N-Index is common data index and storage library.
 
 ## Index Struct ##
 * **HashTable<KeyT, ValueT>**
