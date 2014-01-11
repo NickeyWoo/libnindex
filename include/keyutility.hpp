@@ -399,4 +399,138 @@ struct KeyTranslate<double>
 	}
 };
 
+////////////////////////////////////////////////////////////////////////////
+// KDNode
+template<typename KeyT, uint8_t Dimensions>
+struct NodeVector;
+
+template<typename KeyT, uint8_t Dimensions>
+struct VectorSerialization
+{
+	static std::string Serialization(NodeVector<KeyT, Dimensions>* pVector);
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<int8_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<int8_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%hhd, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<uint8_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<uint8_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%hhu, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<int16_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<int16_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%hd, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<uint16_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<uint16_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%hu, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<int32_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<int32_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%d, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<uint32_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<uint32_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%u, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<int64_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<int64_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%lld, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<uint64_t, Dimensions>
+{
+	static std::string Serialization(NodeVector<uint64_t, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%llu, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<float, Dimensions>
+{
+	static std::string Serialization(NodeVector<float, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%f, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+template<uint8_t Dimensions>
+struct VectorSerialization<double, Dimensions>
+{
+	static std::string Serialization(NodeVector<double, Dimensions>* pVector)
+	{
+		std::string str;
+		for(uint8_t i=0; i<Dimensions; ++i)
+			str.append((boost::format("%f, ") % pVector->Key[i]).str());
+		return str.substr(0, str.length() - 2);
+	}
+};
+
+
+
+
 #endif // define __KEYTRANSLATE_HPP__

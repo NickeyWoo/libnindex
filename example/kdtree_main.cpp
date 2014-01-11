@@ -22,9 +22,36 @@
 #include "storage.hpp"
 #include "kdtree.hpp"
 
-int main()
+struct Pepole
 {
+	uint32_t Uin;
+};
 
+#define INSERT_NUM 	20
+
+int main(int argc, char* argv[])
+{
+	KDTree<Pepole, 2> kdtree = KDTree<Pepole, 2>::CreateKDTree(INSERT_NUM);
+
+	KDTree<Pepole, 2>::ImportDataType * pBuffer = (KDTree<Pepole, 2>::ImportDataType*)malloc(sizeof(KDTree<Pepole, 2>::ImportDataType) * INSERT_NUM);
+	memset(pBuffer, 0, sizeof(KDTree<Pepole, 2>::ImportDataType) * INSERT_NUM);
+	for(int i=0; i<INSERT_NUM; ++i)
+	{
+		pBuffer[i].Vector[0] = random() % 19;
+		pBuffer[i].Vector[1] = random() % 19;
+
+		pBuffer[i].Value.Uin = random() % 10000;
+	}
+
+	if(kdtree.OptimumImport(pBuffer, INSERT_NUM) < 0)
+	{
+		printf("error: optimum import data fail.\n");
+		return -1;
+	}
+
+	kdtree.DumpTree();
+
+	kdtree.Delete();
 	return 0;
 }
 

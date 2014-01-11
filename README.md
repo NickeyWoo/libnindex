@@ -2,11 +2,12 @@
 N-Index is common data index and storage library.
 
 ## Index Struct ##
-* **HashTable<KeyT, ValueT>**
-* **Bitmap<KeyT>**
-* **BloomFilter<KeyT>**
-* **BlockTable<ValueT>**
-* **RBTree<KeyT, ValueT>**
+* **HashTable**
+* **Bitmap**
+* **BloomFilter**
+* **BlockTable**
+* **RBTree**
+* **KDTree**
 
 ## Example ##
 **HashTable:** [hashtable_main.cpp][2]
@@ -141,6 +142,21 @@ N-Index is common data index and storage library.
 	rbtree.Delete();
 ```
 
+**KDTree** [kdtree_main.cpp][7]
+```c++
+	struct Store {
+		uint64_t StoreId;
+	];
+
+	Store* pBuffer = (Store*)malloc(sizeof(Store)*10);
+
+	gps = {x, y};
+	uint32_t range = 100;
+	kdtree.Range(gps, range, pBuffer, 10);
+
+	kdtree.Delete();
+```
+
 [More examples...][1]
 
   [1]: https://github.com/NickeyWoo/nindex/tree/master/example
@@ -149,4 +165,7 @@ N-Index is common data index and storage library.
   [4]: https://github.com/NickeyWoo/nindex/blob/master/example/bloomfilter_main.cpp
   [5]: https://github.com/NickeyWoo/nindex/blob/master/example/blocktable_main.cpp
   [6]: https://github.com/NickeyWoo/nindex/blob/master/example/rbtree_main.cpp
+  [7]: https://github.com/NickeyWoo/nindex/blob/master/example/kdtree_main.cpp
+
+
 
