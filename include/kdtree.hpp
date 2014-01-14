@@ -114,108 +114,18 @@ public:
 		m_NodeBlockTable.Delete();
 	}
 
-	void Clear(VectorType Key)
-	{
-	}
-
 	int OptimumImport(ImportDataType* pBuffer, size_t size)
 	{
 		if(!pBuffer || size == 0)
 			return -1;
 
 		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		IndexT CurIdx = pHead->RootIndex;
-		IndexT ParentIdx = pHead->RootIndex;
-		IndexT* pEmptyIdx = &pHead->RootIndex;
 		KDNode<ValueT, Dimensions, KeyT, IndexT>* pNode = m_NodeBlockTable[pHead->RootIndex];
-
-		// import data
-		IndexT newIndex;
-		ImportNodes(&newIndex, ParentIdx, pBuffer, size);
-		KDNode<ValueT, Dimensions, KeyT, IndexT>* pNewNode = m_NodeBlockTable[newIndex];
-		if(!pNewNode)
+		if(pNode)
 			return -1;
 
-		// find insert postion
-		while(pNode != NULL)
-		{
-			uint8_t vectorIndex = pNode->Head.SplitDimensions;
-			ParentIdx = CurIdx;
-
-			if(pNode->Vector == pNewNode->Vector)
-				return -1;
-			else if(pNode->Vector[vectorIndex] > pNewNode->Vector[vectorIndex])
-			{
-				CurIdx = pNode->Head.LeftIndex;
-				pEmptyIdx = &pNode->Head.LeftIndex;
-			}
-			else
-			{
-				CurIdx = pNode->Head.RightIndex;
-				pEmptyIdx = &pNode->Head.RightIndex;
-			}
-			pNode = m_NodeBlockTable[CurIdx];
-		}
-
-		*pEmptyIdx = newIndex;
-		pNewNode->Head.ParentIndex = ParentIdx;
+		ImportNodes(&pHead->RootIndex, NULL, pBuffer, size);
 		return 0;
-	}
-
-	ValueT* Hash(VectorType key, bool isNew = false)
-	{
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		IndexT CurIdx = pHead->RootIndex;
-		IndexT ParentIdx = pHead->RootIndex;
-
-		IndexT* pEmptyIdx = &pHead->RootIndex;
-		VectorType* pParentVector = NULL;
-		KDNode<ValueT, Dimensions, KeyT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
-		while(node != NULL)
-		{
-			uint8_t vectorIndex = node->Head.SplitDimensions;
-			if(node->Vector == key)
-				return &node->Value;
-			else if(key[vectorIndex] < node->Vector[vectorIndex])
-			{
-				ParentIdx = CurIdx;
-
-				CurIdx = node->Head.LeftIndex;
-				pParentVector = &node->Vector;
-				pEmptyIdx = &node->Head.LeftIndex;
-
-				node = m_NodeBlockTable[CurIdx];
-			}
-			else
-			{
-				ParentIdx = CurIdx;
-
-				CurIdx = node->Head.RightIndex;
-				pParentVector = &node->Vector;
-				pEmptyIdx = &node->Head.RightIndex;
-
-				node = m_NodeBlockTable[CurIdx];
-			}
-		}
-
-		if(node == NULL && isNew)
-		{
-			*pEmptyIdx = m_NodeBlockTable.AllocateBlock();
-			node = m_NodeBlockTable[*pEmptyIdx];
-			if(!node)
-				return NULL;
-
-			memset(node, 0, sizeof(KDNode<ValueT, Dimensions, KeyT, IndexT>));
-			node->Head.ParentIndex = ParentIdx;
-			if(pParentVector)
-				node->Head.SplitDimensions = GetOptimumDimensions(&key, 1, pParentVector);
-			else
-				node->Head.SplitDimensions = 0;
-			memcpy(&node->Vector, &key, sizeof(VectorType));
-
-			return &node->Value;
-		}
-		return NULL;
 	}
 
 	inline ValueT* Nearest(VectorType key)
@@ -254,7 +164,7 @@ public:
 
 protected:
 
-	void ImportNodes(IndexT* pIndex, IndexT ParentIdx, ImportDataType* pBuffer, size_t size)
+	void ImportNodes(IndexT* pIndex, KDNode<ValueT, Dimensions, KeyT, IndexT>* pParentNode, ImportDataType* pBuffer, size_t size)
 	{
 		if(!pIndex || !pBuffer || size == 0)
 			return;
@@ -266,36 +176,19 @@ protected:
 
 		memset(pNode, 0, sizeof(KDNode<ValueT, Dimensions, KeyT, IndexT>));
 
-		VectorType meanVector;
-		GetMeanVector(pBuffer, size, &meanVector);
-
-		pNode->Head.ParentIndex = ParentIdx;
-		pNode->Head.SplitDimensions = GetOptimumDimensions(pBuffer, size, &meanVector);
+		pNode->Head.ParentIndex = m_NodeBlockTable.GetBlockID(pParentNode);
+		if(pParentNode)
+			pNode->Head.SplitDimensions = (pParentNode->Head.SplitDimensions + 1) % Dimensions;
+		else
+			pNode->Head.SplitDimensions = 0;
 
 		ImportDataType* pMedianData = GetMedianData(pBuffer, size, pNode->Head.SplitDimensions);
 		memcpy(&pNode->Vector, &pMedianData->Vector, sizeof(VectorType));
 		memcpy(&pNode->Value, &pMedianData->Value, sizeof(ValueT));
 
 		size_t leftSize = size / 2;
-		ImportNodes(&pNode->Head.LeftIndex, *pIndex, pBuffer, leftSize);
-		ImportNodes(&pNode->Head.RightIndex, *pIndex, &pBuffer[leftSize + 1], size - leftSize - 1);
-	}
-
-	VectorType* GetMeanVector(ImportDataType* pKey, size_t size, VectorType* pMeanVector)
-	{
-		if(!pMeanVector)
-			return NULL;
-
-		for(uint8_t i=0; i<Dimensions; ++i)
-		{
-			KeyT mean = 0;
-			for(size_t j=0; j<size; ++j)
-				mean += pKey[j].Vector[i];
-			mean /= size;
-
-			pMeanVector->Key[i] = mean;
-		}
-		return pMeanVector;
+		ImportNodes(&pNode->Head.LeftIndex, pNode, pBuffer, leftSize);
+		ImportNodes(&pNode->Head.RightIndex, pNode, &pBuffer[leftSize + 1], size - leftSize - 1);
 	}
 
 	class DataCompare
@@ -323,51 +216,6 @@ protected:
 		DataCompare cmp(dim);
 		std::sort(&pBuffer[0], &pBuffer[size], cmp);
 		return &pBuffer[size/2];
-	}
-
-	template<typename DataT, typename S = void>
-	struct VectorValue
-	{
-		static inline KeyT& GetValue(DataT* pData, uint8_t dim);
-	};
-
-	template<typename S>
-	struct VectorValue<ImportDataType, S>
-	{
-		static inline KeyT& GetValue(ImportDataType* pData, uint8_t dim)
-		{
-			return pData->Vector[dim];
-		}
-	};
-
-	template<typename S>
-	struct VectorValue<VectorType, S>
-	{
-		static inline KeyT& GetValue(VectorType* pVector, uint8_t dim)
-		{
-			return pVector->Key[dim];
-		}
-	};
-
-	template<typename DataT>
-	uint8_t GetOptimumDimensions(DataT* pKey, size_t size, VectorType* pMeanVector)
-	{
-		KeyT maxVariance = 0;
-		uint8_t optimumDimensions = 0;
-		for(uint8_t i=0; i<Dimensions; ++i)
-		{
-			KeyT variance = 0;
-			for(size_t j=0; j<size; ++j)
-				variance += pow((VectorValue<DataT>::GetValue(&pKey[j], i) - pMeanVector->Key[i]), 2);
-			variance /= size;
-
-			if(maxVariance < variance)
-			{
-				maxVariance = variance;
-				optimumDimensions = i;
-			}
-		}
-		return optimumDimensions;
 	}
 
 	void PrintNode(KDNode<ValueT, Dimensions, KeyT, IndexT>* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
