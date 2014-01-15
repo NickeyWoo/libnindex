@@ -120,31 +120,19 @@ public:
 			return;
 
 		--m_Head->ElementCount;
-		size_t curIndex = 0;
-		size_t leftChildIndex = 2 * curIndex + 1;
-		while(leftChildIndex <= m_Head->ElementCount)
-		{
-			int result = 1;
-			if(leftChildIndex + 1 <= m_Head->ElementCount)
-			{
-				result = KeyCompare<KeyT>::Compare(m_NodeBuffer[leftChildIndex + 1].Key, m_NodeBuffer[leftChildIndex].Key);
-				if(Maximum)
-					result = 0 - result;
-			}
+		m_NodeBuffer[0] = m_NodeBuffer[m_Head->ElementCount];
 
-			if(result < 0)
-			{
-				m_NodeBuffer[curIndex] = m_NodeBuffer[leftChildIndex + 1];
-				curIndex = leftChildIndex + 1;
-			}
+		size_t index = 0;
+		while(true)
+		{
+			size_t lIndex = LeftChildIndex(index);
+			if(KeyCompare<KeyT>::Compare(m_NodeBuffer[index].Key, m_NodeBuffer[lIndex].Key) > 0)
+				largest = Maximum?lIndex:index;
 			else
-			{
-				m_NodeBuffer[curIndex] = m_NodeBuffer[leftChildIndex];
-				curIndex = leftChildIndex;
-			}
-			leftChildIndex = 2 * curIndex + 1;
+				largest = Maximum?index:lIndex;
+
+			if(KeyCompare<KeyT>::Compare(m_NodeBuffer[largest].Key, m_NodeBuffer[rIndex].Key) > 0)
 		}
-		memset(&m_NodeBuffer[m_Head->ElementCount], 0, sizeof(HeapNode<KeyT, ValueT>));
 	}
 
 	void Dump()
@@ -161,9 +149,25 @@ protected:
 		return (m_Head->ElementCount >= m_Head->BufferSize);
 	}
 
+	inline size_t LeftChildIndex(size_t index)
+	{
+		return 2 * index + 1;
+	}
+
 	inline size_t ParentIndex(size_t index)
 	{
 		return (index - 1) / 2;
+	}
+
+	size_t TopK(ValueT* buffer, size_t size)
+	{
+		size_t i = 0;
+		for(; i<size && m_Head->ElementCount > 0; ++i)
+		{
+			buffer[i] = m_NodeBuffer[0].Value;
+			Pop();
+		}
+		return i;
 	}
 
 	bool m_NeedDelete;
@@ -178,10 +182,17 @@ class MinimumHeap :
 public:
 	inline ValueT* Minimum()
 	{
+		if(this->m_Head->ElementCount == 0)
+			return NULL;
 		return &this->m_NodeBuffer[0].Value;
 	}
 
+	inline size_t Minimum(ValueT* buffer, size_t size)
+	{
+		return TopK(buffer, size);
+	}
 };
+
 
 template<typename KeyT, typename ValueT>
 class MaximumHeap :
@@ -190,7 +201,14 @@ class MaximumHeap :
 public:
 	inline ValueT* Maximum()
 	{
+		if(this->m_Head->ElementCount == 0)
+			return NULL;
 		return &this->m_NodeBuffer[0].Value;
+	}
+
+	inline size_t Maximum(ValueT* buffer, size_t size)
+	{
+		return TopK(buffer, size);
 	}
 };
 

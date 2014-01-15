@@ -35,8 +35,8 @@ int main(int argc, char* argv[])
 	for(uint32_t i=0; i<10; ++i)
 	{
 		uint32_t distance = random() % 9;
-		min.Push(distance)->Uin = i;
-		max.Push(distance)->Uin = i;
+		min.Push(distance)->Uin = distance;
+		max.Push(distance)->Uin = distance;
 		
 		printf("distance: %u uin:%u\n", distance, i);
 	}
@@ -52,13 +52,21 @@ int main(int argc, char* argv[])
 	printf("max: ");
 	max.Dump();
 
-	min.Pop();
-	max.Pop();
+	Value buffer[10];
 
-	printf("second min: ");
-	min.Dump();
-	printf("second max: ");
-	max.Dump();
+	for(size_t i=0; i<10; ++i)
+	{
+		printf("%u ", min.Minimum()->Uin);
+		min.Pop();
+	}
+	printf("\n");
+
+	for(size_t i=0; i<10; ++i)
+	{
+		printf("%u ", max.Maximum()->Uin);
+		max.Pop();
+	}
+	printf("\n");
 
 	min.Delete();
 	max.Delete();
