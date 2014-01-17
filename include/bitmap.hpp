@@ -51,10 +51,6 @@ public:
 		return bitmap;
 	}
 
-	virtual ~Bitmap()
-	{
-	}
-
 	void Delete()
 	{
 		if(m_NeedDelete && m_BitmapBuffer)

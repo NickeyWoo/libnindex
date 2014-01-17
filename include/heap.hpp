@@ -26,7 +26,7 @@ struct HeapHead
 	size_t BufferSize;
 } __attribute__((packed));
 
-template<typename KeyT, typename ValueT, bool Maximum,
+template<typename KeyT, typename ValueT, typename CompareT,
 			template<typename HeapKeyT, typename HeapValueT> class HeapT>
 class HeapBase
 {
@@ -83,11 +83,6 @@ public:
 	{
 	}
 
-	virtual ~HeapBase()
-	{
-		Delete();
-	}
-
 	ValueT* Push(KeyT key)
 	{
 		if(IsFull())
@@ -96,10 +91,7 @@ public:
 		size_t curIndex = m_Head->ElementCount++;
 		while(curIndex > 0)
 		{
-			int result = KeyCompare<KeyT>::Compare(key, m_NodeBuffer[ParentIndex(curIndex)].Key);
-			if(Maximum) result = 0 - result;
-
-			if(result < 0)
+			if(CompareT::Compare(m_NodeBuffer[ParentIndex(curIndex)].Key, key) < 0)
 			{
 				m_NodeBuffer[curIndex] = m_NodeBuffer[ParentIndex(curIndex)];
 				curIndex = ParentIndex(curIndex);
@@ -121,21 +113,17 @@ public:
 
 		--m_Head->ElementCount;
 		m_NodeBuffer[0] = m_NodeBuffer[m_Head->ElementCount];
+		memset(&m_NodeBuffer[m_Head->ElementCount], 0, sizeof(HeapNode<KeyT, ValueT>));
 
-		size_t index = 0;
-		while(true)
-		{
-			size_t lIndex = LeftChildIndex(index);
-			if(KeyCompare<KeyT>::Compare(m_NodeBuffer[index].Key, m_NodeBuffer[lIndex].Key) > 0)
-				largest = Maximum?lIndex:index;
-			else
-				largest = Maximum?index:lIndex;
-
-			if(KeyCompare<KeyT>::Compare(m_NodeBuffer[largest].Key, m_NodeBuffer[rIndex].Key) > 0)
-		}
+		Heapify(0);
 	}
 
-	void Dump()
+	inline void Dump()
+	{
+		HexDump((const char*)m_Head, sizeof(HeapNode<KeyT, ValueT>)*m_Head->BufferSize+sizeof(HeapHead), NULL);
+	}
+
+	void DumpHeap()
 	{
 		for(size_t i=0; i<m_Head->ElementCount; ++i)
 			printf("%s ", KeySerialization<KeyT>::Serialization(m_NodeBuffer[i].Key).c_str());
@@ -143,6 +131,39 @@ public:
 	}
 
 protected:
+	size_t GetLargest(size_t index)
+	{
+		size_t left = LeftChildIndex(index);
+		size_t right = left + 1;
+
+		size_t largest = index;
+		if(left < m_Head->ElementCount)
+		{
+			if(CompareT::Compare(m_NodeBuffer[index].Key, m_NodeBuffer[left].Key) > 0)
+				largest = index;
+			else
+				largest = left;
+
+			if(right < m_Head->ElementCount && CompareT::Compare(m_NodeBuffer[right].Key, m_NodeBuffer[largest].Key) > 0)
+				largest = right;
+		}
+		return largest;
+	}
+
+	void Heapify(size_t index)
+	{
+		while(index < m_Head->ElementCount)
+		{
+			size_t largest = GetLargest(index);
+			if(largest == index)
+				break;
+
+			HeapNode<KeyT, ValueT> tmp = m_NodeBuffer[index];
+			m_NodeBuffer[index] = m_NodeBuffer[largest];
+			m_NodeBuffer[largest] = tmp;
+			index = largest;
+		}
+	}
 
 	inline bool IsFull()
 	{
@@ -177,7 +198,7 @@ protected:
 
 template<typename KeyT, typename ValueT>
 class MinimumHeap :
-	public HeapBase<KeyT, ValueT, false, MinimumHeap>
+	public HeapBase<KeyT, ValueT, MinimumHeap<KeyT, ValueT>, MinimumHeap>
 {
 public:
 	inline ValueT* Minimum()
@@ -187,16 +208,20 @@ public:
 		return &this->m_NodeBuffer[0].Value;
 	}
 
-	inline size_t Minimum(ValueT* buffer, size_t size)
+	inline size_t PopTop(ValueT* buffer, size_t size)
 	{
 		return TopK(buffer, size);
 	}
-};
 
+	inline static int Compare(KeyT key1, KeyT key2)
+	{
+		return KeyCompare<KeyT>::Compare(key2, key1);
+	}
+};
 
 template<typename KeyT, typename ValueT>
 class MaximumHeap :
-	public HeapBase<KeyT, ValueT, true, MaximumHeap>
+	public HeapBase<KeyT, ValueT, MaximumHeap<KeyT, ValueT>, MaximumHeap>
 {
 public:
 	inline ValueT* Maximum()
@@ -206,9 +231,14 @@ public:
 		return &this->m_NodeBuffer[0].Value;
 	}
 
-	inline size_t Maximum(ValueT* buffer, size_t size)
+	inline size_t PopTop(ValueT* buffer, size_t size)
 	{
 		return TopK(buffer, size);
+	}
+
+	inline static int Compare(KeyT key1, KeyT key2)
+	{
+		return KeyCompare<KeyT>::Compare(key1, key2);
 	}
 };
 

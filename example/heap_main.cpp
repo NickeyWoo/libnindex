@@ -47,25 +47,20 @@ int main(int argc, char* argv[])
 	Value* pMaxValue = max.Maximum();
 	printf("Maximum: %u\n", pMaxValue->Uin);
 
-	printf("min: ");
-	min.Dump();
-	printf("max: ");
-	max.Dump();
+	printf("min: \n");
+	min.DumpHeap();
+	printf("max: \n");
+	max.DumpHeap();
 
-	Value buffer[10];
-
-	for(size_t i=0; i<10; ++i)
-	{
-		printf("%u ", min.Minimum()->Uin);
-		min.Pop();
-	}
+	Value buffer[5];
+	min.PopTop(buffer, 5);
+	for(size_t i=0; i<5; ++i)
+		printf("%u ", buffer[i].Uin);
 	printf("\n");
 
-	for(size_t i=0; i<10; ++i)
-	{
-		printf("%u ", max.Maximum()->Uin);
-		max.Pop();
-	}
+	max.PopTop(buffer, 5);
+	for(size_t i=0; i<5; ++i)
+		printf("%u ", buffer[i].Uin);
 	printf("\n");
 
 	min.Delete();

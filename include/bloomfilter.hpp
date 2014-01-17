@@ -49,10 +49,6 @@ public:
 		return bf;
 	}
 
-	virtual ~BloomFilter()
-	{
-	}
-
 	void Delete()
 	{
 		m_Bitmap.Delete();

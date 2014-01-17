@@ -105,10 +105,6 @@ public:
 		return seed.GetCount() * sizeof(HashNode<KeyT, ValueT, HeadT>);
 	}
 
-	virtual ~AbstractHashTable()
-	{
-	}
-
 	void Clear(KeyT key)
 	{
 		typename KeyTranslate<KeyT>::HeadType headKey = KeyTranslate<KeyT>::Translate(key);
