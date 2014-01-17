@@ -208,7 +208,7 @@ public:
 		return &this->m_NodeBuffer[0].Value;
 	}
 
-	inline size_t PopTop(ValueT* buffer, size_t size)
+	inline size_t PopTopK(ValueT* buffer, size_t size)
 	{
 		return TopK(buffer, size);
 	}
@@ -231,7 +231,7 @@ public:
 		return &this->m_NodeBuffer[0].Value;
 	}
 
-	inline size_t PopTop(ValueT* buffer, size_t size)
+	inline size_t PopTopK(ValueT* buffer, size_t size)
 	{
 		return TopK(buffer, size);
 	}

@@ -21,24 +21,7 @@
 #include <boost/format.hpp>
 #include "utility.hpp"
 #include "storage.hpp"
-
-struct node
-{
-	uint8_t ki;
-	double kv;
-
-};
-
-
-class KDTree
-{
-public:
-
-	
-
-};
-
-
+#include "kdtree.hpp"
 
 int main(int argc, char* argv[])
 {

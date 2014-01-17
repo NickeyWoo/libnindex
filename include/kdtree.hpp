@@ -13,6 +13,7 @@
 #include <algorithm>
 #include "keyutility.hpp"
 #include "blocktable.hpp"
+#include "heap.hpp"
 #include "distance.hpp"
 
 template<typename KeyT, uint8_t Dimensions>
@@ -74,9 +75,9 @@ public:
 	typedef NodeVector<KeyT, Dimensions> VectorType;
 
 	typedef struct {
-		NodeVector<KeyT, Dimensions> Vector;
+		VectorType Vector;
 		ValueT Value;
-	} ImportDataType;
+	} DataType;
 
 	static KDTree<ValueT, Dimensions, KeyT, DistanceT, IndexT> CreateKDTree(IndexT size)
 	{
@@ -114,31 +115,23 @@ public:
 		m_NodeBlockTable.Delete();
 	}
 
-	int OptimumImport(ImportDataType* pBuffer, size_t size)
+	int Build(std::vector<DataType>& datas)
 	{
-		if(!pBuffer || size == 0)
-			return -1;
 
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		KDNode<ValueT, Dimensions, KeyT, IndexT>* pNode = m_NodeBlockTable[pHead->RootIndex];
-		if(pNode)
-			return -1;
-
-		ImportNodes(&pHead->RootIndex, NULL, pBuffer, size);
 		return 0;
 	}
 
 	inline ValueT* Nearest(VectorType key)
 	{
-		return Nearest(key, 1);
+		return NULL;
 	}
 
-	ValueT* Nearest(VectorType key, size_t k)
+	int Nearest(VectorType key, ValueT** buffer, size_t size)
 	{
 		return NULL;
 	}
 
-	ValueT* Range(VectorType key, KeyT range, ValueT* buffer, size_t size)
+	int Range(VectorType key, KeyT range, ValueT** buffer, size_t size)
 	{
 		return NULL;
 	}
@@ -164,58 +157,29 @@ public:
 
 protected:
 
-	void ImportNodes(IndexT* pIndex, KDNode<ValueT, Dimensions, KeyT, IndexT>* pParentNode, ImportDataType* pBuffer, size_t size)
+	inline bool IsLeaf(KDNode<ValueT, Dimensions, KeyT, IndexT>* pNode)
 	{
-		if(!pIndex || !pBuffer || size == 0)
-			return;
-
-		*pIndex = m_NodeBlockTable.AllocateBlock();
-		KDNode<ValueT, Dimensions, KeyT, IndexT>* pNode = m_NodeBlockTable[*pIndex];
-		if(!pNode)
-			return;
-
-		memset(pNode, 0, sizeof(KDNode<ValueT, Dimensions, KeyT, IndexT>));
-
-		pNode->Head.ParentIndex = m_NodeBlockTable.GetBlockID(pParentNode);
-		if(pParentNode)
-			pNode->Head.SplitDimensions = (pParentNode->Head.SplitDimensions + 1) % Dimensions;
-		else
-			pNode->Head.SplitDimensions = 0;
-
-		ImportDataType* pMedianData = GetMedianData(pBuffer, size, pNode->Head.SplitDimensions);
-		memcpy(&pNode->Vector, &pMedianData->Vector, sizeof(VectorType));
-		memcpy(&pNode->Value, &pMedianData->Value, sizeof(ValueT));
-
-		size_t leftSize = size / 2;
-		ImportNodes(&pNode->Head.LeftIndex, pNode, pBuffer, leftSize);
-		ImportNodes(&pNode->Head.RightIndex, pNode, &pBuffer[leftSize + 1], size - leftSize - 1);
+		return (m_NodeBlockTable[pNode->Head.LeftIndex] == NULL && m_NodeBlockTable[pNode->Head.RightIndex] == NULL);
 	}
 
-	class DataCompare
+	std::string NodeSerialization(KDNode<ValueT, Dimensions, KeyT, IndexT>* pNode)
 	{
-	public:
-		DataCompare(uint8_t dim) :
-			m_Dimensions(dim)
+		std::string str;
+		if(IsLeaf(pNode))
 		{
+			// leaf node
+			str.append("(");
+			for(uint8_t i=0; i<Dimensions; ++i)
+				str.append((boost::format("%s, ") % KeySerialization<KeyT>::Serialization(pNode->Vector[i])).str());
+			str.erase(str.length() - 2);
+			str.append(")");
 		}
-
-		inline bool operator()(const ImportDataType& d1, const ImportDataType& d2) const
+		else
 		{
-			return d1.Vector.Key[m_Dimensions] < d2.Vector.Key[m_Dimensions];
+			// inner node
+			str.append((boost::format("[split:%hhu, value:%s]") % pNode->Head.SplitDimensions % KeySerialization<KeyT>::Serialization(pNode->Vector[pNode->Head.SplitDimensions])).str());
 		}
-
-	private:
-		uint8_t m_Dimensions;
-	};
-
-	ImportDataType* GetMedianData(ImportDataType* pBuffer, size_t size, uint8_t dim)
-	{
-		if(!pBuffer)
-			return NULL;
-
-		DataCompare cmp(dim);
-		std::sort(&pBuffer[0], &pBuffer[size], cmp);
-		return &pBuffer[size/2];
+		return str;
 	}
 
 	void PrintNode(KDNode<ValueT, Dimensions, KeyT, IndexT>* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
@@ -235,7 +199,7 @@ protected:
 			else
 				printf("|-");
 			if(node)
-				printf("%snode: (%s)[%hhu][p%u:c%u:l%u:r%u]\n", isRight?"r":"l", VectorSerialization<KeyT, Dimensions>::Serialization(&node->Vector).c_str(), node->Head.SplitDimensions, node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+				printf("%snode: %s[p%u:c%u:l%u:r%u]\n", isRight?"r":"l", NodeSerialization(node).c_str(), node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
 			else
 			{
 				printf("%snode: (null)\n", isRight?"r":"l");
@@ -246,7 +210,7 @@ protected:
 		{
 			printf("\\-");
 			if(node)
-				printf("root: (%s)[%hhu][p%u:c%u:l%u:r%u]\n", VectorSerialization<KeyT, Dimensions>::Serialization(&node->Vector).c_str(), node->Head.SplitDimensions, node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+				printf("root: %s[p%u:c%u:l%u:r%u]\n", NodeSerialization(node).c_str(), node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
 			else
 			{
 				printf("root: (null)\n");
