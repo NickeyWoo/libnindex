@@ -42,10 +42,10 @@ int main(int argc, char* argv[])
 	}
 
 	Value* pMinValue = min.Minimum();
-	printf("Minimum: %u\n", pMinValue->Uin);
+	printf("Minimum(%lu): %u\n", min.Count(), pMinValue->Uin);
 
 	Value* pMaxValue = max.Maximum();
-	printf("Maximum: %u\n", pMaxValue->Uin);
+	printf("Maximum(%lu): %u\n", max.Count(), pMaxValue->Uin);
 
 	printf("min: \n");
 	min.DumpHeap();
@@ -53,12 +53,12 @@ int main(int argc, char* argv[])
 	max.DumpHeap();
 
 	Value buffer[5];
-	min.PopTop(buffer, 5);
+	min.PopTopK(buffer, 5);
 	for(size_t i=0; i<5; ++i)
 		printf("%u ", buffer[i].Uin);
 	printf("\n");
 
-	max.PopTop(buffer, 5);
+	max.PopTopK(buffer, 5);
 	for(size_t i=0; i<5; ++i)
 		printf("%u ", buffer[i].Uin);
 	printf("\n");

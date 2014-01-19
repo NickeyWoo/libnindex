@@ -7,6 +7,7 @@ N-Index is common data index and storage library.
 * **BloomFilter**
 * **BlockTable**
 * **RBTree**
+* **Heap**
 * **KDTree**
 
 ## Example ##
@@ -142,6 +143,29 @@ N-Index is common data index and storage library.
 	rbtree.Delete();
 ```
 
+**Heap** [heap_main.cpp][7]
+```c++
+	struct Value {
+		uint64_t Data;
+	];
+
+	MinimumHeap<uint32_t, Value> min = MinimumHeap<uint32_t, Value>::CreateHeap(10);
+	MaximumHeap<uint32_t, Value> max = MaximumHeap<uint32_t, Value>::CreateHeap(10);
+
+	for(uint32_t i=0; i<10; ++i)
+	{
+		uint32_t key = random() % 9;
+		min.Push(key)->Data = random() % 79;
+		max.Push(key)->Data = random() % 99;
+	}
+
+	Value* pMinValue = min.Minimum();
+	Value* pMaxValue = max.Maximum();
+
+	min.Delete();
+	max.Delete();
+```
+
 **KDTree** [kdtree_main.cpp][7]
 ```c++
 	struct Store {
@@ -165,7 +189,8 @@ N-Index is common data index and storage library.
   [4]: https://github.com/NickeyWoo/nindex/blob/master/example/bloomfilter_main.cpp
   [5]: https://github.com/NickeyWoo/nindex/blob/master/example/blocktable_main.cpp
   [6]: https://github.com/NickeyWoo/nindex/blob/master/example/rbtree_main.cpp
-  [7]: https://github.com/NickeyWoo/nindex/blob/master/example/kdtree_main.cpp
+  [7]: https://github.com/NickeyWoo/nindex/blob/master/example/heap_main.cpp
+  [8]: https://github.com/NickeyWoo/nindex/blob/master/example/kdtree_main.cpp
 
 
 

@@ -118,6 +118,11 @@ public:
 		Heapify(0);
 	}
 
+	inline size_t Count()
+	{
+		return m_Head->ElementCount;
+	}
+
 	inline void Dump()
 	{
 		HexDump((const char*)m_Head, sizeof(HeapNode<KeyT, ValueT>)*m_Head->BufferSize+sizeof(HeapHead), NULL);
