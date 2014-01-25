@@ -23,11 +23,33 @@
 #include "storage.hpp"
 #include "kdtree.hpp"
 
+struct Value {
+	uint32_t Uin;
+};
+
 int main(int argc, char* argv[])
 {
+	KDTree<Value, 2> kdtree = KDTree<Value, 2>::CreateKDTree(20);
 
+	for(uint32_t i=0; i<10; ++i)
+	{
+		KDTree<Value, 2>::VectorType v;
+		v[0] = random() % 99;
+		v[1] = random() % 109;
 
+		printf("new vector (%u, %u)\n", v[0], v[1]);
 
+		Value* pValue = kdtree.Hash(v, true);
+		if(!pValue)
+			break;
+
+		pValue->Uin = i;
+	}
+
+	printf("Tree Dump:\n");
+	kdtree.DumpTree();
+
+	kdtree.Delete();
 	return 0;
 }
 
