@@ -185,17 +185,6 @@ protected:
 		return (index - 1) / 2;
 	}
 
-	size_t TopK(ValueT* buffer, size_t size)
-	{
-		size_t i = 0;
-		for(; i<size && m_Head->ElementCount > 0; ++i)
-		{
-			buffer[i] = m_NodeBuffer[0].Value;
-			Pop();
-		}
-		return i;
-	}
-
 	bool m_NeedDelete;
 	HeapHead* m_Head;
 	HeapNode<KeyT, ValueT>* m_NodeBuffer;
@@ -206,16 +195,13 @@ class MinimumHeap :
 	public HeapBase<KeyT, ValueT, MinimumHeap<KeyT, ValueT>, MinimumHeap>
 {
 public:
-	inline ValueT* Minimum()
+	inline ValueT* Minimum(KeyT* pKey = NULL)
 	{
 		if(this->m_Head->ElementCount == 0)
 			return NULL;
-		return &this->m_NodeBuffer[0].Value;
-	}
 
-	inline size_t PopTopK(ValueT* buffer, size_t size)
-	{
-		return TopK(buffer, size);
+		if(pKey) *pKey = this->m_NodeBuffer[0].Key;
+		return &this->m_NodeBuffer[0].Value;
 	}
 
 	inline static int Compare(KeyT key1, KeyT key2)
@@ -229,16 +215,13 @@ class MaximumHeap :
 	public HeapBase<KeyT, ValueT, MaximumHeap<KeyT, ValueT>, MaximumHeap>
 {
 public:
-	inline ValueT* Maximum()
+	inline ValueT* Maximum(KeyT* pKey = NULL)
 	{
 		if(this->m_Head->ElementCount == 0)
 			return NULL;
-		return &this->m_NodeBuffer[0].Value;
-	}
 
-	inline size_t PopTopK(ValueT* buffer, size_t size)
-	{
-		return TopK(buffer, size);
+		if(pKey) *pKey = this->m_NodeBuffer[0].Key;
+		return &this->m_NodeBuffer[0].Value;
 	}
 
 	inline static int Compare(KeyT key1, KeyT key2)

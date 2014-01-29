@@ -11,10 +11,20 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+
+#ifdef KDTREE_USE_DRAW2DMAP
+#include <Magick++.h>
+#endif // define KDTREE_USE_DRAW2DMAP
+
 #include "keyutility.hpp"
 #include "blocktable.hpp"
 #include "heap.hpp"
 #include "distance.hpp"
+
+#define MAX_LOOPCOUNT		1000
+
+#define IMG_SIZE	860
+#define ZOOM		IMG_SIZE / 100
 
 template<typename KeyT, uint8_t DimensionValue>
 struct KDVector
@@ -72,10 +82,11 @@ template<typename IndexT>
 struct KDTreeHead
 {
 	IndexT RootIndex;
+	uint32_t Count;
 } __attribute__((packed));
 
 template<typename ValueT, uint8_t DimensionValue, 
-			typename KeyT = uint32_t, template<typename, uint8_t> class DistanceT = EuclideanDistance, 
+			typename KeyT = uint32_t, template<typename, typename, uint8_t> class DistanceT = EuclideanDistance, 
 			typename IndexT = uint32_t>
 class KDTree
 {
@@ -91,7 +102,7 @@ public:
 	{
 		KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> kdtree;
 		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-												KDTreeHead<IndexT>, IndexT>::CreateBlockTable(size);
+												KDTreeHead<IndexT>, IndexT>::CreateBlockTable(2*size);
 		return kdtree;
 	}
 
@@ -115,7 +126,7 @@ public:
 	static inline size_t GetBufferSize(IndexT size)
 	{
 		return BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-							KDTreeHead<IndexT>, IndexT>::GetBufferSize(size);
+							KDTreeHead<IndexT>, IndexT>::GetBufferSize(2*size);
 	}
 
 	void Delete()
@@ -123,108 +134,136 @@ public:
 		m_NodeBlockTable.Delete();
 	}
 
-	void Clear(VectorType v)
+	int Build(std::vector<DataType>& vData)
 	{
-	}
+		if(vData.size() == 0)
+			return -1;
 
-	ValueT* Hash(VectorType vkey, bool isNew = false)
-	{
+		std::sort(vData.begin(), vData.end(), DataCompare(DataCompare::COMPARE_VECTOR));
+		typename std::vector<DataType>::iterator iter = std::unique(vData.begin(), vData.end(), DataCompare(DataCompare::COMPARE_EQUAL));
+		vData.resize(std::distance(vData.begin(), iter));
+
 		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = m_NodeBlockTable[pHead->RootIndex];
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pParentNode = NULL;
-		while(pNode != NULL && !IsLeaf(pNode))
-		{
-			int result = KeyCompare<KeyT>::Compare(vkey[pNode->Head.SplitDimension],
-													pNode->Vector[pNode->Head.SplitDimension]);
-			if(result > 0)
-			{
-				pParentNode = pNode;
-				pNode = m_NodeBlockTable[pNode->Head.RightIndex];
-			}
-			else
-			{
-				pParentNode = pNode;
-				pNode = m_NodeBlockTable[pNode->Head.LeftIndex];
-			}
-		}
+		pHead->Count = vData.size();
+		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pRootNode = m_NodeBlockTable[pHead->RootIndex];
+		if(pRootNode)
+			return -1;
 
-		if(pNode && pNode->Vector == vkey)
-			return &pNode->Value;
-		else if(isNew && pNode)
-		{
-			IndexT curIndex = m_NodeBlockTable.GetBlockID(pNode);
-			IndexT splitIndex = m_NodeBlockTable.AllocateBlock();
-			KDNode<ValueT, DimensionValue, KeyT, IndexT>* pSplitNode = m_NodeBlockTable[splitIndex];
-			if(!pSplitNode)
-				return NULL;
-
-			IndexT newNodeIndex = m_NodeBlockTable.AllocateBlock();
-			KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNewNode = m_NodeBlockTable[newNodeIndex];
-			if(!pNewNode)
-			{
-				m_NodeBlockTable.ReleaseBlock(splitIndex);
-				return NULL;
-			}
-
-			if(pParentNode)
-			{
-				if(pParentNode->Head.LeftIndex == curIndex)
-					pParentNode->Head.LeftIndex = splitIndex;
-				else
-					pParentNode->Head.RightIndex = splitIndex;
-			}
-			else
-				pHead->RootIndex = splitIndex;
-
-			memset(pSplitNode, 0, sizeof(KDNode<ValueT, DimensionValue, KeyT, IndexT>));
-			pSplitNode->Head.ParentIndex = pNode->Head.ParentIndex;
-			pSplitNode->Head.SplitDimension = GetMaxVarianceDimension(vkey, pNode->Vector);
-			if(vkey[pSplitNode->Head.SplitDimension] > pNode->Vector[pSplitNode->Head.SplitDimension])
-			{
-				pSplitNode->Head.LeftIndex = curIndex;
-				pSplitNode->Head.RightIndex = newNodeIndex;
-				pSplitNode->Vector = pNode->Vector;
-			}
-			else
-			{
-				pSplitNode->Head.LeftIndex = newNodeIndex;
-				pSplitNode->Head.RightIndex = curIndex;
-				pSplitNode->Vector = vkey;
-			}
-
-			pNode->Head.ParentIndex = splitIndex;
-
-			memset(pNewNode, 0, sizeof(KDNode<ValueT, DimensionValue, KeyT, IndexT>));
-			pNewNode->Head.ParentIndex = splitIndex;
-			pNewNode->Vector = vkey;
-			return &pNewNode->Value;
-		}
-		else if(isNew && !pNode)
-		{
-			pHead->RootIndex = m_NodeBlockTable.AllocateBlock();
-			KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNewNode = m_NodeBlockTable[pHead->RootIndex];
-			if(!pNewNode) return NULL;
-
-			memset(pNewNode, 0, sizeof(KDNode<ValueT, DimensionValue, KeyT, IndexT>));
-			pNewNode->Vector = vkey;
-			return &pNewNode->Value;
-		}
-		return NULL;
+		return BuildTree(&pHead->RootIndex, NULL, vData.begin(), vData.end());
 	}
 
-	inline ValueT* Nearest(VectorType key)
+	size_t Nearest(VectorType key, DataType* buffer, size_t size)
 	{
-		return NULL;
+		if(buffer == NULL || size == 0)
+			return 0;
+
+		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		if(!m_NodeBlockTable[pHead->RootIndex])
+			return 0;
+
+		MinimumHeap<KeyT, IndexT> miniheap = MinimumHeap<KeyT, IndexT>::CreateHeap(MAX_LOOPCOUNT);
+		MaximumHeap<KeyT, DataType> nearestMaxHeap = MaximumHeap<KeyT, DataType>::CreateHeap(size);
+
+		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = FindToLeaf(key, pHead->RootIndex, miniheap);
+		DataType* pData = nearestMaxHeap.Push(DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(pNode->Vector, key));
+		pData->Vector = pNode->Vector;
+		pData->Value = pNode->Value;
+
+		int loop = 0;
+		while(miniheap.Count() > 0 && loop < MAX_LOOPCOUNT)
+		{
+			KeyT hyperplaneDistance;
+			IndexT miniOtherIndex = *miniheap.Minimum(&hyperplaneDistance);
+			miniheap.Pop();
+
+			KeyT maxDistance = 0;
+			nearestMaxHeap.Maximum(&maxDistance);
+
+			if(hyperplaneDistance < maxDistance || nearestMaxHeap.Count() < size)
+			{
+				pNode = FindToLeaf(key, miniOtherIndex, miniheap);
+				KeyT distance = DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(pNode->Vector, key);
+				if(distance < maxDistance || nearestMaxHeap.Count() < size)
+				{
+					if(nearestMaxHeap.Count() >= size)
+						nearestMaxHeap.Pop();
+					DataType* pData = nearestMaxHeap.Push(distance);
+					pData->Vector = pNode->Vector;
+					pData->Value = pNode->Value;
+				}
+			}
+			++loop;
+		}
+
+		size_t foundCount = nearestMaxHeap.Count();
+		for(int i=foundCount-1; i>=0; --i)
+		{
+			memcpy(&buffer[i], nearestMaxHeap.Maximum(), sizeof(DataType));
+			nearestMaxHeap.Pop();
+		}
+
+		miniheap.Delete();
+		nearestMaxHeap.Delete();
+		return foundCount;
 	}
 
-	int Nearest(VectorType key, ValueT** buffer, size_t size)
+	size_t Range(VectorType key, KeyT range, DataType* buffer, size_t size)
 	{
-		return NULL;
-	}
+		if(buffer == NULL || size == 0)
+			return 0;
 
-	int Range(VectorType key, KeyT range, ValueT** buffer, size_t size)
-	{
-		return NULL;
+		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		if(!m_NodeBlockTable[pHead->RootIndex])
+			return 0;
+
+		MinimumHeap<KeyT, IndexT> miniheap = MinimumHeap<KeyT, IndexT>::CreateHeap(MAX_LOOPCOUNT);
+		MaximumHeap<KeyT, DataType> nearestMaxHeap = MaximumHeap<KeyT, DataType>::CreateHeap(size);
+
+		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = FindToLeafWithRange(key, range, pHead->RootIndex, miniheap);
+		KeyT distance = DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(pNode->Vector, key);
+		if(distance <= range)
+		{
+			DataType* pData = nearestMaxHeap.Push(distance);
+			pData->Vector = pNode->Vector;
+			pData->Value = pNode->Value;
+		}
+
+		int loop = 0;
+		while(miniheap.Count() > 0 && loop < MAX_LOOPCOUNT)
+		{
+			KeyT hyperplaneDistance;
+			IndexT miniOtherIndex = *miniheap.Minimum(&hyperplaneDistance);
+			miniheap.Pop();
+
+			KeyT maxDistance = 0;
+			nearestMaxHeap.Maximum(&maxDistance);
+
+			if(hyperplaneDistance < maxDistance || nearestMaxHeap.Count() < size)
+			{
+				pNode = FindToLeafWithRange(key, range, miniOtherIndex, miniheap);
+				distance = DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(pNode->Vector, key);
+				if(distance <= range && (distance < maxDistance || nearestMaxHeap.Count() < size))
+				{
+					if(nearestMaxHeap.Count() >= size)
+						nearestMaxHeap.Pop();
+					DataType* pData = nearestMaxHeap.Push(distance);
+					pData->Vector = pNode->Vector;
+					pData->Value = pNode->Value;
+				}
+			}
+			++loop;
+		}
+
+		size_t foundCount = nearestMaxHeap.Count();
+		for(int i=foundCount-1; i>=0; --i)
+		{
+			memcpy(&buffer[i], nearestMaxHeap.Maximum(), sizeof(DataType));
+			nearestMaxHeap.Pop();
+		}
+
+		miniheap.Delete();
+		nearestMaxHeap.Delete();
+		return foundCount;
 	}
 
 	inline void Dump()
@@ -239,8 +278,113 @@ public:
 
 		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
 		KDNode<ValueT, DimensionValue, KeyT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
+		printf("Node Count: %u\n", pHead->Count);
 		PrintNode(node, 0, false, flags);
 	}
+
+#ifdef KDTREE_USE_DRAW2DMAP
+
+	void DrawNode(Magick::Image& img, KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode, double x, double y, double ex, double ey)
+	{
+		if(!pNode)
+			return;
+
+		if(IsLeaf(pNode))
+		{
+			img.strokeColor("red");
+			img.strokeWidth(1);
+			img.fillColor("red");
+
+			double nodeX = pNode->Vector[0] * ZOOM;
+			double nodeY = pNode->Vector[1] * ZOOM;
+			Magick::DrawableCircle circle(nodeX, nodeY, nodeX-5, nodeY);
+			img.draw(circle);
+
+			img.strokeColor("black");
+			Magick::DrawableText txt(nodeX-25, nodeY-12, (boost::format("(%u, %u)") % pNode->Vector[0] % pNode->Vector[1]).str());
+			img.draw(txt);
+
+			return;
+		}
+		else
+		{
+			img.strokeColor("black");
+			img.strokeWidth(1);
+			Magick::DrawableLine line(0, 0, 0, 0);
+
+			double lx, ly, lex, ley;
+			double rx, ry, rex, rey;
+			if(pNode->Head.SplitDimension)
+			{
+				line.startX(x);
+				line.startY(ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension]);
+				line.endX(ex);
+				line.endY(ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension]);
+
+				lx = x;
+				ly = y;
+				lex = ex;
+				ley = ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension];
+
+				rx = x;
+				ry = ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension];
+				rex = ex;
+				rey = ey;
+			}
+			else
+			{
+				line.startX(ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension]);
+				line.startY(y);
+				line.endX(ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension]);
+				line.endY(ey);
+
+				lx = x;
+				ly = y;
+				lex = ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension];
+				ley = ey;
+
+				rx = ZOOM * (double)pNode->Vector[pNode->Head.SplitDimension];
+				ry = y;
+				rex = ex;
+				rey = ey;
+			}
+			img.draw(line);
+
+			DrawNode(img, m_NodeBlockTable[pNode->Head.LeftIndex], lx, ly, lex, ley);
+			DrawNode(img, m_NodeBlockTable[pNode->Head.RightIndex], rx, ry, rex, rey);
+		}
+	}
+
+	void Draw2DMap(const char* szFile, double searchX, double searchY)
+	{
+		if(!szFile || DimensionValue != 2)
+			return;
+
+		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+
+		Magick::Color backgroundColor(0xFFFF, 0xFFFF, 0xFFFF);
+		Magick::Geometry size(IMG_SIZE, IMG_SIZE);
+		Magick::Image img(size, backgroundColor);
+
+		DrawNode(img, m_NodeBlockTable[pHead->RootIndex], 0, 0, IMG_SIZE, IMG_SIZE);
+
+		img.strokeColor("green");
+		img.strokeWidth(1);
+		img.fillColor("green");
+
+		double nodeX = searchX * ZOOM;
+		double nodeY = searchY * ZOOM;
+		Magick::DrawableCircle circle(nodeX, nodeY, nodeX-5, nodeY);
+		img.draw(circle);
+
+		img.strokeColor("black");
+		Magick::DrawableText txt(nodeX-25, nodeY-12, (boost::format("(%u, %u)") % searchX % searchY).str());
+		img.draw(txt);
+
+		img.write(szFile);
+	}
+
+#endif // define KDTREE_USE_DRAW2DMAP
 
 	KDTree()
 	{
@@ -248,49 +392,115 @@ public:
 
 protected:
 
-	uint8_t GetMaxVarianceDimension(VectorType& vkey1, VectorType& vkey2)
+	KDNode<ValueT, DimensionValue, KeyT, IndexT>* FindToLeafWithRange(VectorType key, KeyT range, IndexT nodeIndex, MinimumHeap<KeyT, IndexT>& min_pq)
 	{
-		uint8_t dim = 0;
-		KeyT max = 0;
-		for(uint8_t i=0; i<DimensionValue; ++i)
+		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = NULL;
+		while((pNode = m_NodeBlockTable[nodeIndex]) && !IsLeaf(pNode))
 		{
-			KeyT var;
-			if(vkey2[i] > vkey1[i]) var = (vkey2[i] - vkey1[i]);
-			else var = (vkey1[i] - vkey2[i]);
-			if(max < var)
+			KeyT distance = (KeyT)fabs(pNode->Vector[pNode->Head.SplitDimension] - key[pNode->Head.SplitDimension]);
+			if(key[pNode->Head.SplitDimension] < pNode->Vector[pNode->Head.SplitDimension])
 			{
-				max = var;
-				dim = i;
+				nodeIndex = pNode->Head.LeftIndex;
+				if(distance <= range)
+				{
+					IndexT* pValue = min_pq.Push(distance);
+					if(pValue)
+						*pValue = pNode->Head.RightIndex;
+				}
+			}
+			else
+			{
+				nodeIndex = pNode->Head.RightIndex;
+				if(distance <= range)
+				{
+					IndexT* pValue = min_pq.Push(distance);
+					if(pValue)
+						*pValue = pNode->Head.LeftIndex;
+				}
 			}
 		}
-		return dim;
+		return pNode;
 	}
 
-	uint8_t GetMaxVarianceDimension(std::vector<DataType>& vData)
+	KDNode<ValueT, DimensionValue, KeyT, IndexT>* FindToLeaf(VectorType key, IndexT nodeIndex, MinimumHeap<KeyT, IndexT>& min_pq)
+	{
+		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = NULL;
+		while((pNode = m_NodeBlockTable[nodeIndex]) && !IsLeaf(pNode))
+		{
+			KeyT distance = (KeyT)fabs(pNode->Vector[pNode->Head.SplitDimension] - key[pNode->Head.SplitDimension]);
+			if(key[pNode->Head.SplitDimension] < pNode->Vector[pNode->Head.SplitDimension])
+			{
+				nodeIndex = pNode->Head.LeftIndex;
+				IndexT* pValue = min_pq.Push(distance);
+				if(pValue)
+					*pValue = pNode->Head.RightIndex;
+			}
+			else
+			{
+				nodeIndex = pNode->Head.RightIndex;
+				IndexT* pValue = min_pq.Push(distance);
+				if(pValue)
+					*pValue = pNode->Head.LeftIndex;
+			}
+		}
+		return pNode;
+	}
+
+	int BuildTree(IndexT* pNodeIndex, KDNode<ValueT, DimensionValue, KeyT, IndexT>* pParentNode,
+					typename std::vector<DataType>::iterator iterBegin, 
+					typename std::vector<DataType>::iterator iterEnd)
+	{
+		*pNodeIndex = m_NodeBlockTable.AllocateBlock();
+		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = m_NodeBlockTable[*pNodeIndex];
+		if(!pNode)
+			return -1;
+		
+		memset(pNode, 0, sizeof(KDNode<ValueT, DimensionValue, KeyT, IndexT>));
+		pNode->Head.ParentIndex = m_NodeBlockTable.GetBlockID(pParentNode);
+		if(std::distance(iterBegin, iterEnd) == 1)
+		{
+			// leaf node
+			pNode->Vector = iterBegin->Vector;
+			pNode->Value = iterBegin->Value;
+		}
+		else
+		{
+			// inner node
+			pNode->Head.SplitDimension = GetMaxVarianceDimension(iterBegin, iterEnd);
+			pNode->Vector = GetMedianVector(pNode->Head.SplitDimension, iterBegin, iterEnd);
+
+			typename std::vector<DataType>::iterator iterMedian = iterBegin + std::distance(iterBegin, iterEnd) / 2;
+			if(0 != BuildTree(&pNode->Head.LeftIndex, pNode, iterBegin, iterMedian) ||
+				0 != BuildTree(&pNode->Head.RightIndex, pNode, iterMedian, iterEnd))
+				return -1;
+		}
+		return 0;
+	}
+
+	uint8_t GetMaxVarianceDimension(typename std::vector<DataType>::iterator iterBegin,
+									typename std::vector<DataType>::iterator iterEnd)
 	{
 		uint8_t maxVarianceDimension = 0;
 
-		KeyT maxVariance;
+		KeyT maxVariance = 0;
 		for(uint8_t i=0; i<DimensionValue; ++i)
 		{
 			KeyT mean = 0;
 			KeyT var = 0;
-			for(typename std::vector<DataType>::iterator iter = vData.begin();
-				iter != vData.end();
+			for(typename std::vector<DataType>::iterator iter = iterBegin;
+				iter != iterEnd;
 				++iter)
 			{
 				mean += iter->Vector[i];
 			}
-			mean /= vData.size();
+			mean /= std::distance(iterBegin, iterEnd);
 
-			for(typename std::vector<DataType>::iterator iter = vData.begin();
-				iter != vData.end();
+			for(typename std::vector<DataType>::iterator iter = iterBegin;
+				iter != iterEnd;
 				++iter)
 			{
-				if(iter->Vector[i] > mean)
-					var += (iter->Vector[i] - mean) * (iter->Vector[i] - mean);
-				else
-					var += (mean - iter->Vector[i]) * (mean - iter->Vector[i]);
+				KeyT sub = (KeyT)fabs(iter->Vector[i] - mean);
+				var += sub * sub;
 			}
 
 			if(var > maxVariance)
@@ -338,15 +548,17 @@ protected:
 		DataCompareType m_CompareType;
 	};
 
-	VectorType GetMedianVector(uint8_t dim, std::vector<DataType>& vData)
+	VectorType GetMedianVector(uint8_t dim, 
+								typename std::vector<DataType>::iterator iterBegin,
+								typename std::vector<DataType>::iterator iterEnd)
 	{
-		typename std::vector<DataType>::size_type median = vData.size() / 2;
+		typename std::vector<DataType>::size_type median = std::distance(iterBegin, iterEnd) / 2;
 
 		DataCompare compare(DataCompare::COMPARE_DIMENSION);
 		compare.SetCompareDimension(dim);
-		std::nth_element(vData.begin(), vData.begin()+median, vData.end(), compare);
+		std::nth_element(iterBegin, iterBegin + median, iterEnd, compare);
 
-		return vData.at(median).Value;
+		return (iterBegin + median)->Vector;
 	}
 
 	inline bool IsLeaf(KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode)

@@ -12,32 +12,29 @@
 #include <vector>
 #include <math.h>
 
-template<typename KeyT, uint8_t Dimensions>
-struct NodeVector;
-
-template<typename KeyT, uint8_t Dimensions>
+template<typename KeyT, typename VectorType, uint8_t DimensionValue>
 struct EuclideanDistance
 {
-	static double Distance(const NodeVector<KeyT, Dimensions>& key1, const NodeVector<KeyT, Dimensions>& key2)
+	static KeyT Distance(VectorType& key1, VectorType& key2)
 	{
-		double ret;
-		for(uint8_t i=0; i<Dimensions; ++i)
+		KeyT ret = 0;
+		for(uint8_t i=0; i<DimensionValue; ++i)
 		{
 			ret += (key1[i] - key2[i]) * (key1[i] - key2[i]);
 		}
-		return sqrt(ret);
+		return ret;
 	}
 };
 
-template<typename KeyT, uint8_t Dimensions>
+template<typename KeyT, typename VectorType, uint8_t DimensionValue>
 struct ManhattanDistance
 {
-	static double Distance(const NodeVector<KeyT, Dimensions>& key1, const NodeVector<KeyT, Dimensions>& key2)
+	static KeyT Distance(VectorType& key1, VectorType& key2)
 	{
-		double ret;
-		for(uint8_t i=0; i<Dimensions; ++i)
+		KeyT ret = 0;
+		for(uint8_t i=0; i<DimensionValue; ++i)
 		{
-			ret += fabs(key1[i] - key2[i]);
+			ret += (key2[i] > key1[i])?(key2[i] - key1[i]):(key1[i] - key2[i]);
 		}
 		return ret;
 	}

@@ -30,7 +30,7 @@ clean:
 	$(CXX) $^ -o $@ $(LIBS)
 
 ../bin/kdtree_example: objs/kdtree_main.o
-	$(CXX) $^ -o $@ $(LIBS)
+	$(CXX) $^ -o $@ $(LIBS) -L/usr/lib64 -lMagick++
 
 ../bin/heap_example: objs/heap_main.o
 	$(CXX) $^ -o $@ $(LIBS)

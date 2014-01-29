@@ -52,17 +52,6 @@ int main(int argc, char* argv[])
 	printf("max: \n");
 	max.DumpHeap();
 
-	Value buffer[5];
-	min.PopTopK(buffer, 5);
-	for(size_t i=0; i<5; ++i)
-		printf("%u ", buffer[i].Uin);
-	printf("\n");
-
-	max.PopTopK(buffer, 5);
-	for(size_t i=0; i<5; ++i)
-		printf("%u ", buffer[i].Uin);
-	printf("\n");
-
 	min.Delete();
 	max.Delete();
 	return 0;
