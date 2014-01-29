@@ -166,7 +166,7 @@ N-Index is common data index and storage library.
 	max.Delete();
 ```
 
-**KDTree** [kdtree_main.cpp][7]
+**KDTree** [kdtree_main.cpp][8]
 ```c++
 	struct Store {
 		uint64_t StoreId;
