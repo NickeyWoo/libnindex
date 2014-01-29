@@ -129,6 +129,11 @@ public:
 							KDTreeHead<IndexT>, IndexT>::GetBufferSize(2*size);
 	}
 
+	static inline KeyT Distance(VectorType& v1, VectorType& v2)
+	{
+		return DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(v1, v2);
+	}
+
 	void Delete()
 	{
 		m_NodeBlockTable.Delete();
