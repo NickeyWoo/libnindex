@@ -35,6 +35,21 @@ struct BlockHead<void, IndexT>
 	uint64_t Flags;
 } __attribute__((packed));
 
+template<typename TypeListT, typename HeadT, typename IndexT>
+struct MultiBlockHead
+{
+	HeadT Head;
+	IndexT EmptyIndex[TypeListLength<TypeListT>::Length];
+	uint64_t Flags;
+} __attribute__((packed));
+
+template<typename TypeListT, typename IndexT>
+struct MultiBlockHead<TypeListT, void, IndexT>
+{
+	IndexT EmptyIndex[TypeListLength<TypeListT>::Length];
+	uint64_t Flags;
+} __attribute__((packed));
+
 template<typename ValueT, typename HeadT = void, typename IndexT = uint32_t>
 class BlockTable
 {
@@ -171,5 +186,72 @@ protected:
 	Block<ValueT, IndexT>* m_BlockBuffer;
 	IndexT m_Count;
 };
+
+
+template<typename TypeListT, typename IndexT, uint32_t index>
+struct GetTypeBufferSize
+{
+	static size_t Size(std::vector<IndexT>& vSize);
+};
+template<typename IndexT, uint32_t index>
+struct GetTypeBufferSize<NullType, IndexT, index>
+{
+	static inline size_t Size(std::vector<IndexT>& vSize)
+	{
+		return 0;
+	}
+};
+template<typename Type1, typename Type2, typename IndexT, uint32_t index>
+struct GetTypeBufferSize<TypeList<Type1, Type2>, IndexT, index>
+{
+	static inline size_t Size(std::vector<IndexT>& vSize)
+	{
+		return (sizeof(Type1) * vSize[index]) + GetTypeBufferSize<Type2, IndexT, index+1>::Size(vSize);
+	}
+};
+
+template<typename TypeListT, typename HeadT, typename IndexT>
+class MultiBlockTableImpl
+{
+public:
+	
+	static size_t GetBufferSize(std::vector<IndexT> vSize)
+	{
+		if(vSize.size() != TypeListLength<TypeListT>::Length)
+			return 0;
+
+		return sizeof(MultiBlockHead<TypeListT, HeadT, IndexT>) + GetTypeBufferSize<TypeListT, IndexT, 0>::Size(vSize);
+	}
+
+protected:
+	bool m_NeedDelete;
+
+	MultiBlockHead<TypeListT, HeadT, IndexT>* m_BlockHead;
+	std::vector<IndexT> vBlockCount;
+	char* m_BlockBuffer;
+};
+
+template<typename TypeListT, 
+			typename HeadT = void, typename IndexT = uint32_t, 
+			typename MultiBlockTableImplT = MultiBlockTableImpl<TypeListT, HeadT, IndexT> >
+class MultiBlockTable;
+
+template<typename HeadT, typename IndexT, typename MultiBlockTableImplT>
+class MultiBlockTable<NullType, HeadT, IndexT, MultiBlockTableImplT> :
+	public MultiBlockTableImplT
+{
+};
+template<typename Type1, typename Type2, typename HeadT, typename IndexT, typename MultiBlockTableImplT>
+class MultiBlockTable<TypeList<Type1, Type2>, HeadT, IndexT, MultiBlockTableImplT> :
+	public MultiBlockTable<Type2, HeadT, IndexT, MultiBlockTableImplT>
+{
+public:
+	Type1* operator[](IndexT index)
+	{
+		return NULL;
+	}
+};
+
+
 
 #endif // define __BLOCKTABLE_HPP__

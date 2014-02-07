@@ -24,6 +24,17 @@
 
 int main(int argc, char* argv[])
 {
+	FileStorage fs;
+	if(FileStorage::OpenStorage(&fs, "TernaryTree.index", TernaryTree<char>::GetBufferSize(100, 10)) < 0)
+	{
+		printf("error: open file fail.\n");
+		return -1;
+	}
+
+	TernaryTree<char> tt = TernaryTree<char>::LoadTernaryTree(fs);
+
+	fs.Flush();
+	fs.Release();
 	return 0;
 }
 

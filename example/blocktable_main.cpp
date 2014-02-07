@@ -27,6 +27,21 @@ struct Value
 	uint8_t Number;
 } __attribute__((packed));
 
+struct Value1
+{
+	uint8_t Value1;
+} __attribute__((packed));
+
+struct Value2
+{
+	uint16_t Value2;
+} __attribute__((packed));
+
+struct Value3
+{
+	uint32_t Value3;
+} __attribute__((packed));
+
 int main(int argc, char* argv[])
 {
 	FileStorage fs;
@@ -70,8 +85,18 @@ int main(int argc, char* argv[])
 		bt[id]->Number = i;
 	}
 
-
 	bt.Dump();
+	
+	std::vector<uint32_t> vSize;
+	vSize.push_back(3);
+	vSize.push_back(2);
+	vSize.push_back(1);
+
+	FileStorage fs2;
+	FileStorage::OpenStorage(&fs2, "./multiblocktable.data", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
+
+	printf("all:%lu\n", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
+
 	return 0;
 }
 

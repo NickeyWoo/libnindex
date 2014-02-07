@@ -10,8 +10,70 @@
 
 #include <utility>
 
-class NullType;
-class EmptyType { };
+struct NullType;
+struct EmptyType { };
+
+template<typename Type1, typename Type2>
+struct TypeList
+{
+	typedef Type1 HeadType;
+	typedef Type2 TailType;
+};
+
+#define TYPELIST_1(T1) 										TypeList<T1, NullType>
+#define TYPELIST_2(T1, T2) 									TypeList<T1, TYPELIST_1(T2) >
+#define TYPELIST_3(T1, T2, T3)								TypeList<T1, TYPELIST_2(T2, T3) >
+#define TYPELIST_4(T1, T2, T3, T4) 							TypeList<T1, TYPELIST_3(T2, T3, T4) >
+#define TYPELIST_5(T1, T2, T3, T4, T5) 						TypeList<T1, TYPELIST_4(T2, T3, T4, T5) >
+#define TYPELIST_6(T1, T2, T3, T4, T5, T6) 					TypeList<T1, TYPELIST_5(T2, T3, T4, T5, T6) >
+#define TYPELIST_7(T1, T2, T3, T4, T5, T6, T7) 				TypeList<T1, TYPELIST_6(T2, T3, T4, T5, T6, T7) >
+#define TYPELIST_8(T1, T2, T3, T4, T5, T6, T7, T8) 			TypeList<T1, TYPELIST_7(T2, T3, T4, T5, T6, T7, T8) >
+#define TYPELIST_9(T1, T2, T3, T4, T5, T6, T7, T8, T9) 		TypeList<T1, TYPELIST_8(T2, T3, T4, T5, T6, T7, T8, T9) >
+
+template<typename TypeListT> struct TypeListLength;
+template<> 
+struct TypeListLength<NullType>
+{
+	enum { Length = 0 };
+};
+template<typename Type1, typename Type2> 
+struct TypeListLength< TypeList<Type1, Type2> >
+{
+	enum { Length = 1 + TypeListLength<Type2>::Length };
+};
+
+template<typename TypeListT, uint32_t Index> struct TypeListAt;
+template<typename Type1, typename Type2>
+struct TypeListAt<TypeList<Type1, Type2>, 0>
+{
+	typedef Type1 ResultType;
+};
+template<typename Type1, typename Type2, uint32_t Index>
+struct TypeListAt<TypeList<Type1, Type2>, Index>
+{
+	typedef typename TypeListAt<Type2, Index - 1>::ResultType ResultType;
+};
+
+template<typename TypeListT, typename T> struct TypeListIndexOf;
+template<typename T>
+struct TypeListIndexOf<NullType, T>
+{
+	enum { Index = -1 };
+};
+template<typename Type2, typename T>
+struct TypeListIndexOf<TypeList<T, Type2>, T>
+{
+	enum { Index = 0 };
+};
+template<typename Type1, typename Type2, typename T>
+struct TypeListIndexOf<TypeList<Type1, Type2>, T>
+{
+private:
+	enum { temp = TypeListIndexOf<Type2, T>::Index };
+
+public:
+	enum { Index = (temp == -1)?-1:(1 + temp) };
+};
 
 #define ntohll(val)	\
 		((uint64_t)ntohl(0xFFFFFFFF&val) << 32 | ntohl((0xFFFFFFFF00000000&val) >> 32))
