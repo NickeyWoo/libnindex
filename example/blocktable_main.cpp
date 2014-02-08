@@ -42,6 +42,38 @@ struct Value3
 	uint32_t Value3;
 } __attribute__((packed));
 
+template<typename Type>
+void MultiTestRelease(MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>& mbt, uint32_t size)
+{
+	for(uint8_t i=0; i<size/2; ++i)
+	{
+		uint32_t id = random() % size;
+		if(!id) ++id;
+		Type* pValue = mbt.GetBlock(id, (Type**)NULL);
+		mbt.ReleaseBlock(pValue);
+
+		printf("release block: %u\n", id);
+	}
+}
+
+template<typename Type>
+void MultiTestInsert(MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>& mbt, uint32_t size)
+{
+	for(uint8_t i=0; i<size; ++i)
+	{
+		Type* pValue = NULL;
+		uint32_t id = mbt.AllocateBlock(&pValue);
+
+		if(!pValue)
+		{
+			printf("mbt is full.\n");
+			break;
+		}
+
+		printf("alloc block: %u\n", id);
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	FileStorage fs;
@@ -65,6 +97,7 @@ int main(int argc, char* argv[])
 	for(uint16_t i=0; i<10; ++i)
 	{
 		uint16_t id = random() % 19;
+		if(!id) ++id;
 		Value* pItem = bt[id];
 		if(pItem)
 		{
@@ -94,33 +127,61 @@ int main(int argc, char* argv[])
 	vSize.push_back(10);
 	vSize.push_back(5);
 
-	FileStorage fs2;
-	FileStorage::OpenStorage(&fs2, "./multiblocktable.data", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
+	//FileStorage fs2;
+	//FileStorage::OpenStorage(&fs2, "./multiblocktable.data", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
 
-	MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)> mbt = MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::LoadMultiBlockTable(fs2, vSize);
+	//MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)> mbt = MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::LoadMultiBlockTable(fs2, vSize);
+	MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)> mbt = MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::CreateMultiBlockTable(vSize);
 
-	for(uint8_t i=0; i<15; ++i)
-	{
-		Value1* pVal1 = NULL;
-		mbt.AllocateBlock(&pVal1);
+	printf("Insert\n");
+	printf("struct Value1:\n");
+	MultiTestInsert<Value1>(mbt, 15);
+	printf("\n");
 
-		if(!pVal1)
-			break;
-	}
+	printf("struct Value2:\n");
+	MultiTestInsert<Value2>(mbt, 7);
+	printf("\n");
 
-	for(uint8_t i=0; i<15; ++i)
-	{
-		Value1* pVal1 = NULL;
-		mbt.AllocateBlock(&pVal1);
+	printf("struct Value3:\n");
+	MultiTestInsert<Value3>(mbt, 3);
+	printf("\n");
+	printf("\n");
 
-		if(!pVal1)
-			break;
-	}
+	printf("/////////////////////////////////////////////////////\n");
+	printf("Release\n");
+	printf("struct Value1:\n");
+	MultiTestRelease<Value1>(mbt, 15);
+	printf("\n");
+
+	printf("struct Value2:\n");
+	MultiTestRelease<Value2>(mbt, 7);
+	printf("\n");
+
+	printf("struct Value3:\n");
+	MultiTestRelease<Value3>(mbt, 3);
+	printf("\n");
+	printf("\n");
+
+	printf("/////////////////////////////////////////////////////\n");
+	printf("Insert\n");
+	printf("struct Value1:\n");
+	MultiTestInsert<Value1>(mbt, 15);
+	printf("\n");
+
+	printf("struct Value2:\n");
+	MultiTestInsert<Value2>(mbt, 7);
+	printf("\n");
+
+	printf("struct Value3:\n");
+	MultiTestInsert<Value3>(mbt, 3);
+	printf("\n");
+	printf("\n");
+
 
 	mbt.Dump();
-
 	return 0;
 }
+
 
 
 

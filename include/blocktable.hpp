@@ -259,7 +259,7 @@ struct GetBlockNodeID<TypeList<Type1, Type2>, TypeT, IndexT, IndexValue>
 {
 	static inline IndexT ID(char* buffer, const TypeT* pValue, std::vector<IndexT>& vSize)
 	{
-		return GetBlockNodeID<Type2, TypeT, IndexT, IndexValue + 1>::ID((buffer + sizeof(Type1) * vSize[IndexValue]), pValue, vSize);
+		return GetBlockNodeID<Type2, TypeT, IndexT, IndexValue + 1>::ID((buffer + sizeof(Block<Type1, IndexT>) * vSize[IndexValue]), pValue, vSize);
 	}
 };
 
@@ -387,7 +387,7 @@ public:
 
 		pBlock->Next = m_BlockHead->EmptyIndex[TypeListIndexOf<TypeListT, Type>::Index];
 		pBlock->Flags = ~BLOCK_FLAG_ACTIVE;
-		m_BlockHead->EmptyIndex = id;
+		m_BlockHead->EmptyIndex[TypeListIndexOf<TypeListT, Type>::Index] = id;
 	}
 
 	template<typename Type>
