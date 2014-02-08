@@ -87,15 +87,37 @@ int main(int argc, char* argv[])
 
 	bt.Dump();
 	
+	printf("\n\n/////////////////////////////////////////////////////////\n");
+
 	std::vector<uint32_t> vSize;
-	vSize.push_back(3);
-	vSize.push_back(2);
-	vSize.push_back(1);
+	vSize.push_back(20);
+	vSize.push_back(10);
+	vSize.push_back(5);
 
 	FileStorage fs2;
 	FileStorage::OpenStorage(&fs2, "./multiblocktable.data", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
 
-	printf("all:%lu\n", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
+	MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)> mbt = MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::LoadMultiBlockTable(fs2, vSize);
+
+	for(uint8_t i=0; i<15; ++i)
+	{
+		Value1* pVal1 = NULL;
+		mbt.AllocateBlock(&pVal1);
+
+		if(!pVal1)
+			break;
+	}
+
+	for(uint8_t i=0; i<15; ++i)
+	{
+		Value1* pVal1 = NULL;
+		mbt.AllocateBlock(&pVal1);
+
+		if(!pVal1)
+			break;
+	}
+
+	mbt.Dump();
 
 	return 0;
 }
