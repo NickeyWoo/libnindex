@@ -10,6 +10,7 @@ N-Index is common data index and storage library.
 * **RBTree**
 * **Heap**
 * **KDTree**
+* **TernarySearchTree**
 
 ## Example ##
 **HashTable:** [hashtable_main.cpp][2]
@@ -182,6 +183,11 @@ N-Index is common data index and storage library.
 	kdtree.Delete();
 ```
 
+**TernarySearchTree** [ternarytree_main.cpp][9]
+```c++
+
+```
+
 [More examples...][1]
 
   [1]: https://github.com/NickeyWoo/nindex/tree/master/example
@@ -192,6 +198,7 @@ N-Index is common data index and storage library.
   [6]: https://github.com/NickeyWoo/nindex/blob/master/example/rbtree_main.cpp
   [7]: https://github.com/NickeyWoo/nindex/blob/master/example/heap_main.cpp
   [8]: https://github.com/NickeyWoo/nindex/blob/master/example/kdtree_main.cpp
+  [9]: https://github.com/NickeyWoo/nindex/blob/master/example/ternarytree_main.cpp
 
 
 
