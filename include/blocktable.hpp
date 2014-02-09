@@ -282,6 +282,8 @@ template<typename TypeListT, typename HeadT = void, typename IndexT = uint32_t>
 class MultiBlockTable
 {
 public:
+	typedef IndexT BlockIndexType;
+
 	static MultiBlockTable<TypeListT, HeadT, IndexT> CreateMultiBlockTable(std::vector<IndexT> vSize)
 	{
 		size_t size = MultiBlockTable<TypeListT, HeadT, IndexT>::GetBufferSize(vSize);
