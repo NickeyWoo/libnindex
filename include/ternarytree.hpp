@@ -13,6 +13,7 @@
 
 #include "keyutility.hpp"
 #include "storage.hpp"
+#include "utility.hpp"
 #include "blocktable.hpp"
 
 template<typename KeyT>
@@ -63,40 +64,50 @@ struct TernaryTreeHead
 	IndexT RootIndex;
 } __attribute__((packed));
 
-template<typename KeyT, typename IndexT = uint32_t>
+template<typename ValueT, typename KeyT = char, typename IndexT = int32_t>
 class TernaryTree
 {
 public:
 	typedef IndexT TernaryTreeIterator;
 
-	static TernaryTree<KeyT, IndexT> CreateTernaryTree(size_t size)
+	static TernaryTree<ValueT, KeyT, IndexT> CreateTernaryTree(IndexT stringCount, IndexT avgStringLength)
 	{
-		TernaryTree<KeyT, IndexT> tt;
-		tt.m_NodeBlockTable = BlockTable<TernaryNode<KeyT, IndexT>, TernaryTreeHead<IndexT>, IndexT>::CreateBlockTable(size);
+		std::vector<IndexT> vec;
+		vec.push_back(stringCount*avgStringLength);
+		vec.push_back(stringCount);
+
+		TernaryTree<ValueT, KeyT, IndexT> tt;
+		tt.m_NodeBlockTable = MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), 
+								TernaryTreeHead<IndexT>, IndexT>::CreateMultiBlockTable(vec);
 		return tt;
 	}
 
-	static TernaryTree<KeyT, IndexT> LoadTernaryTree(char* buffer, size_t size)
+	static TernaryTree<ValueT, KeyT, IndexT> LoadTernaryTree(char* buffer, size_t size, IndexT stringCount, IndexT avgStringLength)
 	{
-		TernaryTree<KeyT, IndexT> tt;
-		tt.m_NodeBlockTable = BlockTable<TernaryNode<KeyT, IndexT>, TernaryTreeHead<IndexT>, IndexT>::LoadBlockTable(buffer, size);
+		std::vector<IndexT> vec;
+		vec.push_back(stringCount*avgStringLength);
+		vec.push_back(stringCount);
+
+		TernaryTree<ValueT, KeyT, IndexT> tt;
+		tt.m_NodeBlockTable = MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), 
+								TernaryTreeHead<IndexT>, IndexT>::LoadMultiBlockTable(buffer, size, vec);
 		return tt;
 	}
 
 	template<typename StorageT>
-	static inline TernaryTree<KeyT, IndexT> LoadTernaryTree(StorageT storage)
+	static inline TernaryTree<ValueT, KeyT, IndexT> LoadTernaryTree(StorageT storage, IndexT stringCount, IndexT avgStringLength)
 	{
-		return LoadTernaryTree(storage.GetBuffer(), storage.GetSize());
+		return LoadTernaryTree(storage.GetBuffer(), storage.GetSize(), stringCount, avgStringLength);
 	}
 
 	static inline size_t GetBufferSize(IndexT stringCount, IndexT avgStringLength)
 	{
-		return BlockTable<TernaryNode<KeyT, IndexT>, TernaryTreeHead<IndexT>, IndexT>::GetBufferSize(stringCount * avgStringLength);
-	}
+		std::vector<IndexT> vec;
+		vec.push_back(stringCount*avgStringLength);
+		vec.push_back(stringCount);
 
-	static inline size_t GetBufferSize(IndexT size)
-	{
-		return BlockTable<TernaryNode<KeyT, IndexT>, TernaryTreeHead<IndexT>, IndexT>::GetBufferSize(size);
+		return MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), 
+					TernaryTreeHead<IndexT>, IndexT>::GetBufferSize(vec);
 	}
 
 	inline void Delete()
@@ -121,12 +132,13 @@ public:
 		}
 
 		TernaryTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		TernaryNode<KeyT, IndexT>* pRootNode = m_NodeBlockTable[pHead->RootIndex];
+		TernaryNode<KeyT, IndexT>* pRootNode = NULL;
+		m_NodeBlockTable.GetBlock(pHead->RootIndex, &pRootNode);
 		for(size_t i=0; i<size; ++i)
 		{
 			TernaryNode<KeyT, IndexT>* pLayerNode = Hash(pRootNode, pKeyString[i], true);
 
-			pRootNode = m_NodeBlockTable[pLayerNode->Head.CenterIndex];
+			m_NodeBlockTable.GetBlock(pLayerNode->Head.CenterIndex, &pRootNode);
 		}
 
 		return 0;
@@ -154,7 +166,10 @@ public:
 
 protected:
 
-	BlockTable<TernaryNode<KeyT, IndexT>, TernaryTreeHead<IndexT>, IndexT> m_NodeBlockTable;
+	typedef TernaryNode<KeyT, IndexT> TreeNodeType;
+
+	MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), TernaryTreeHead<IndexT>, IndexT> m_NodeBlockTable;
+
 };
 
 

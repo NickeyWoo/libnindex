@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	TernaryTree<char> tt = TernaryTree<char>::LoadTernaryTree(fs);
+	TernaryTree<char> tt = TernaryTree<char>::LoadTernaryTree(fs, 100, 10);
 
 	fs.Flush();
 	fs.Release();
