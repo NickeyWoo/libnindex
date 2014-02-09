@@ -6,6 +6,7 @@ N-Index is common data index and storage library.
 * **Bitmap**
 * **BloomFilter**
 * **BlockTable**
+* **MultiBlockTable**
 * **RBTree**
 * **Heap**
 * **KDTree**
@@ -69,7 +70,7 @@ N-Index is common data index and storage library.
 
 ```
 
-**BlockTable** [blocktable_main.cpp][5]
+**BlockTable / MultiBlockTable** [blocktable_main.cpp][5]
 ```c++
 	struct Tree {
 		BlockTable<TreeNode, void>::BlockIndexType RootIndex;

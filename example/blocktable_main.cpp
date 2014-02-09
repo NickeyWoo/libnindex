@@ -29,17 +29,17 @@ struct Value
 
 struct Value1
 {
-	uint8_t Value1;
+	uint8_t Value;
 } __attribute__((packed));
 
 struct Value2
 {
-	uint16_t Value2;
+	uint16_t Value;
 } __attribute__((packed));
 
 struct Value3
 {
-	uint32_t Value3;
+	uint32_t Value;
 } __attribute__((packed));
 
 template<typename Type>
@@ -70,6 +70,7 @@ void MultiTestInsert(MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>& mbt, u
 			break;
 		}
 
+		pValue->Value = i;
 		printf("alloc block: %u\n", id);
 	}
 }
