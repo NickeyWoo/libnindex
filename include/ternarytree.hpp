@@ -401,7 +401,7 @@ protected:
 		for(int i=size-1; i>=0; --i)
 		{
 			TreeNodeType* pTempNode = NULL;
-			pNode->Head.ParentIndex = m_NodeBlockTable.AllocateBlock(&pTempNode);
+			IndexT tempNodeIdx = m_NodeBlockTable.AllocateBlock(&pTempNode);
 			if(pTempNode == NULL)
 			{
 				error = true;
@@ -414,9 +414,7 @@ protected:
 
 			SetNodeColorBlack(pNode);
 
-			printf("%lu: %c\n", pNode->Head.ParentIndex, pKeyString[i]);
-
-			nodeIdx = pNode->Head.ParentIndex;
+			nodeIdx = tempNodeIdx;
 			pNode = pTempNode;
 
 			vNodePtr.push_back(pNode);
@@ -436,7 +434,6 @@ protected:
 		pNode->Head.ParentIndex = ParentIdx;
 		*pEmptyIdx = nodeIdx;
 
-		printf("rootid: %lu\n", *pRootNodeIdx);
 		InsertFixup(pNode, pRootNodeIdx);
 		return pValue;
 	}

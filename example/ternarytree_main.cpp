@@ -61,8 +61,7 @@ int main(int argc, char* argv[])
 
 		pValue->TweetID = i;
 
-		tt.Dump();
-		exit(0);
+		tt.DumpTree();
 	}
 
 	//fs.Flush();
