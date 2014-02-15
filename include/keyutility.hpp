@@ -20,6 +20,15 @@ struct KeySerialization
 };
 
 template<>
+struct KeySerialization<char>
+{
+	static std::string Serialization(char key)
+	{
+		return std::string(key, 1);
+	}
+};
+
+template<>
 struct KeySerialization<int8_t>
 {
 	static std::string Serialization(int8_t key)
@@ -131,6 +140,15 @@ template<typename KeyT>
 struct KeyCompare
 {
 	static int Compare(KeyT key1, KeyT key2);
+};
+
+template<>
+struct KeyCompare<char>
+{
+	static int Compare(char key1, char key2)
+	{
+		return key1 - key2;
+	}
 };
 
 template<>

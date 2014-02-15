@@ -191,6 +191,36 @@ public:
 
 	void DumpTree()
 	{
+		TernaryTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+
+		TreeNodeType* pNode = NULL;
+		m_NodeBlockTable.GetBlock(pHead->RootIndex, &pNode);
+
+		PrintNode(pNode);
+	}
+
+	void PrintNode(TreeNodeType* pNode)
+	{
+		if(!pNode)
+			return;
+
+		TreeNodeType* pLeftNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode))
+			PrintNode(pLeftNode);
+
+		if(IsLeaf(pNode))
+			printf("\n");
+		else
+		{
+			printf("%c", pNode->Key);
+			TreeNodeType* pCenterNode = NULL;
+			if(m_NodeBlockTable.GetBlock(pNode->Head.CenterIndex, &pCenterNode))
+				PrintNode(pCenterNode);
+		}
+
+		TreeNodeType* pRightNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+			PrintNode(pRightNode);
 	}
 
 	inline void Dump()
@@ -199,9 +229,151 @@ public:
 	}
 
 protected:
+	inline bool IsLeaf(TreeNodeType* pNode)
+	{
+		return (pNode->Head.Color & NODECOLOR_LEAF) == NODECOLOR_LEAF;
+	}
+
+	inline bool IsRed(TreeNodeType* pNode)
+	{
+		return (pNode->Head.Color & NODECOLOR_BLACK) != NODECOLOR_BLACK;
+	}
+
+	inline void SetNodeColorRed(TreeNodeType* pNode)
+	{
+		pNode->Head.Color = (pNode->Head.Color & NODECOLOR_LEAF);
+	}
+
+	inline void SetNodeColorBlack(TreeNodeType* pNode)
+	{
+		pNode->Head.Color = (pNode->Head.Color & NODECOLOR_LEAF) | NODECOLOR_BLACK;
+	}
+
+	void TreeNodeRotateLeft(TreeNodeType* pNode, IndexT* pRootNodeIdx)
+	{
+		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+
+		TreeNodeType* pRightNode = NULL;
+		if(!m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+			return;
+		pRightNode->Head.ParentIndex = pNode->Head.ParentIndex;
+
+		TreeNodeType* pParentNode = NULL;
+		if(!m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode))
+			*pRootNodeIdx = pNode->Head.RightIndex;
+		else
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+				pParentNode->Head.LeftIndex = pNode->Head.RightIndex;
+			else
+				pParentNode->Head.RightIndex = pNode->Head.RightIndex;
+		}
+
+		pNode->Head.ParentIndex = pNode->Head.RightIndex;
+		pNode->Head.RightIndex = pRightNode->Head.LeftIndex;
+
+		TreeNodeType* pRightLeftNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pRightNode->Head.LeftIndex, &pRightLeftNode))
+			pRightLeftNode->Head.ParentIndex = nodeIndex;
+
+		pRightNode->Head.LeftIndex = nodeIndex;
+	}
+
+	void TreeNodeRotateRight(TreeNodeType* pNode, IndexT* pRootNodeIdx)
+	{
+		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+
+		TreeNodeType* pLeftNode = NULL;
+		if(!m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode))
+			return;
+		pLeftNode->Head.ParentIndex = pNode->Head.ParentIndex;
+
+		TreeNodeType* pParentNode = NULL;
+		if(!m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode))
+			*pRootNodeIdx = pNode->Head.LeftIndex;
+		else
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+				pParentNode->Head.LeftIndex = pNode->Head.LeftIndex;
+			else
+				pParentNode->Head.RightIndex = pNode->Head.LeftIndex;
+		}
+
+		pNode->Head.ParentIndex = pNode->Head.LeftIndex;
+		pNode->Head.RightIndex = pLeftNode->Head.RightIndex;
+
+		TreeNodeType* pLeftRightNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pLeftNode->Head.RightIndex, &pLeftRightNode))
+			pLeftRightNode->Head.ParentIndex = nodeIndex;
+
+		pLeftNode->Head.RightIndex = nodeIndex;
+	}
 
 	void InsertFixup(TreeNodeType* pNode, IndexT* pRootNodeIdx)
 	{
+		TreeNodeType* pParentNode = NULL;
+		while(pNode &&
+				IsRed(pNode) &&
+				m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode) &&
+				IsRed(pParentNode))
+		{
+			IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+
+			TreeNodeType* pGrandpaNode = NULL;
+			m_NodeBlockTable.GetBlock(pParentNode->Head.ParentIndex, &pGrandpaNode);
+			if(pGrandpaNode->Head.LeftIndex == pNode->Head.ParentIndex)
+			{
+				TreeNodeType* pUncleNode = NULL;
+				if(m_NodeBlockTable.GetBlock(pGrandpaNode->Head.RightIndex, &pUncleNode) &&
+					IsRed(pUncleNode))
+				{
+					SetNodeColorBlack(pParentNode);
+					SetNodeColorBlack(pUncleNode);
+					SetNodeColorRed(pGrandpaNode);
+					pNode = pGrandpaNode;
+					continue;
+				}
+
+				if(nodeIndex == pParentNode->Head.RightIndex)
+				{
+					SetNodeColorBlack(pNode);
+					TreeNodeRotateLeft(pParentNode, pRootNodeIdx);
+				}
+				else
+					SetNodeColorBlack(pParentNode);
+
+				SetNodeColorRed(pGrandpaNode);
+				TreeNodeRotateRight(pGrandpaNode, pRootNodeIdx);
+			}
+			else
+			{
+				TreeNodeType* pUncleNode = NULL;
+				if(m_NodeBlockTable.GetBlock(pGrandpaNode->Head.LeftIndex, &pUncleNode) &&
+					IsRed(pUncleNode))
+				{
+					SetNodeColorBlack(pParentNode);
+					SetNodeColorBlack(pUncleNode);
+					SetNodeColorRed(pGrandpaNode);
+					pNode = pGrandpaNode;
+					continue;
+				}
+
+				if(nodeIndex == pParentNode->Head.LeftIndex)
+				{
+					SetNodeColorBlack(pNode);
+					TreeNodeRotateRight(pParentNode, pRootNodeIdx);
+				}
+				else
+					SetNodeColorBlack(pParentNode);
+
+				SetNodeColorRed(pGrandpaNode);
+				TreeNodeRotateLeft(pGrandpaNode, pRootNodeIdx);
+			}
+		}
+
+		TreeNodeType* pRootNode = NULL;
+		m_NodeBlockTable.GetBlock(*pRootNodeIdx, &pRootNode);
+		SetNodeColorBlack(pRootNode);
 	}
 
 	ValueT* InsertString(const KeyT* pKeyString, size_t size, IndexT* pEmptyIdx, IndexT ParentIdx, IndexT* pRootNodeIdx)
@@ -220,13 +392,13 @@ protected:
 			m_NodeBlockTable.ReleaseBlock(pValue);
 			return NULL;
 		}
-		pNode->Head.Color = NODECOLOR_LEAF|NODECOLOR_RED;
+		pNode->Head.Color = NODECOLOR_LEAF;
 		pNode->Head.CenterIndex = ValueIdx;
 
 		vNodePtr.push_back(pNode);
 
 		bool error = false;
-		for(size_t i=size-1; i>=0; ++i)
+		for(int i=size-1; i>=0; --i)
 		{
 			TreeNodeType* pTempNode = NULL;
 			pNode->Head.ParentIndex = m_NodeBlockTable.AllocateBlock(&pTempNode);
@@ -240,7 +412,9 @@ protected:
 			pTempNode->Head.Color = NODECOLOR_RED;
 			pTempNode->Key = pKeyString[i];
 
-			pNode->Head.Color = (pNode->Head.Color & NODECOLOR_LEAF) | NODECOLOR_BLACK;
+			SetNodeColorBlack(pNode);
+
+			printf("%lu: %c\n", pNode->Head.ParentIndex, pKeyString[i]);
 
 			nodeIdx = pNode->Head.ParentIndex;
 			pNode = pTempNode;
@@ -262,6 +436,7 @@ protected:
 		pNode->Head.ParentIndex = ParentIdx;
 		*pEmptyIdx = nodeIdx;
 
+		printf("rootid: %lu\n", *pRootNodeIdx);
 		InsertFixup(pNode, pRootNodeIdx);
 		return pValue;
 	}
@@ -285,7 +460,7 @@ protected:
 			return NULL;
 		}
 
-		pLeafNode->Head.Color = NODECOLOR_LEAF|NODECOLOR_RED;
+		pLeafNode->Head.Color = NODECOLOR_LEAF;
 		pLeafNode->Head.ParentIndex = ParentIdx;
 
 		InsertFixup(pLeafNode, pRootNodeIdx);
@@ -314,7 +489,7 @@ protected:
 			return NULL;
 
 		pNode = TreeNodeMinimum(pNode);
-		if((pNode->Head.Color & NODECOLOR_LEAF) == NODECOLOR_LEAF)
+		if(IsLeaf(pNode))
 			return pNode;
 
 		*ppEmptyIdx = &pNode->Head.LeftIndex;
@@ -335,7 +510,7 @@ protected:
 		while(m_NodeBlockTable.GetBlock(nodeIdx, &pNode) != NULL)
 		{
 			int result = -1;
-			if((pNode->Head.Color & NODECOLOR_LEAF) != NODECOLOR_LEAF)
+			if(!IsLeaf(pNode))
 				result = KeyCompare<KeyT>::Compare(pNode->Key, key);
 			if(result == 0)
 				return pNode;

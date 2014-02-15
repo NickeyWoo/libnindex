@@ -270,6 +270,32 @@ struct GetBlockNodeID<TypeList<Type1, Type2>, TypeT, IndexT, IndexValue>
 	}
 };
 
+template<typename TypeListT, typename IndexT, uint32_t IndexValue>
+struct DumpTypeBuffer
+{
+	static void Dump(const char* buffer, std::vector<IndexT>& vSize);
+};
+template<typename IndexT, uint32_t IndexValue>
+struct DumpTypeBuffer<NullType, IndexT, IndexValue>
+{
+	static void Dump(const char* buffer, std::vector<IndexT>& vSize)
+	{
+	}
+};
+template<typename Type1, typename Type2, typename IndexT, uint32_t IndexValue>
+struct DumpTypeBuffer<TypeList<Type1, Type2>, IndexT, IndexValue>
+{
+	static void Dump(const char* buffer, std::vector<IndexT>& vSize)
+	{
+		size_t len = sizeof(Type1) * vSize[IndexValue];
+
+		printf("Data Buffer[%u]:\n", IndexValue);
+		HexDump(buffer, len, NULL);
+
+		DumpTypeBuffer<Type2, IndexT, IndexValue + 1>::Dump(buffer+len, vSize);
+	}
+};
+
 template<typename TypeListT, typename HeadT, typename IndexT>
 struct MultiBlockHead
 {
@@ -451,8 +477,8 @@ public:
 	{
 		printf("Head Buffer:\n");
 		HexDump((const char*)m_BlockHead, sizeof(MultiBlockHead<TypeListT, HeadT, IndexT>), NULL);
-		printf("Data Buffer:\n");
-		HexDump((const char*)m_BlockBuffer, GetTypeBufferSize<TypeListT, IndexT, 0>::Size(m_BlockCount), NULL);
+
+		DumpTypeBuffer<TypeListT, IndexT, 0>::Dump(m_BlockBuffer, m_BlockCount);
 	}
 
 	MultiBlockTable() :
