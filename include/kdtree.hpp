@@ -460,7 +460,6 @@ protected:
 		if(!pNode)
 			return -1;
 		
-		memset(pNode, 0, sizeof(KDNode<ValueT, DimensionValue, KeyT, IndexT>));
 		pNode->Head.ParentIndex = m_NodeBlockTable.GetBlockID(pParentNode);
 		if(std::distance(iterBegin, iterEnd) == 1)
 		{

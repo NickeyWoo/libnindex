@@ -299,7 +299,6 @@ public:
 			if(node == NULL)
 				return NULL;
 
-			memset(node, 0, sizeof(RBTreeNode<KeyT, ValueT, IndexT>));
 			node->Head.ParentIndex = ParentIdx;
 			memcpy(&node->Key, &key, sizeof(KeyT));
 

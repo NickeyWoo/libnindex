@@ -98,6 +98,13 @@ public:
 		return &m_BlockHead->Head;
 	}
 
+	inline Block<ValueT, IndexT>* GetBlockBuffer(Block<ValueT, IndexT>** ppBuffer, IndexT* pCount)
+	{
+		*ppBuffer = m_BlockBuffer;
+		*pCount = m_Count;
+		return *ppBuffer;
+	}
+
 	IndexT AllocateBlock()
 	{
 		if(m_BlockHead->EmptyIndex == 0 || m_BlockHead->EmptyIndex > m_Count)
@@ -341,6 +348,17 @@ public:
 	HeadT* GetHead()
 	{
 		return &m_BlockHead->Head;
+	}
+
+	template<typename Type>
+	Block<Type, IndexT>* GetBlockBuffer(Block<Type, IndexT>** ppBuffer, IndexT* pCount)
+	{
+		BOOST_STATIC_ASSERT((TypeListIndexOf<TypeListT, Type>::Index >= 0));
+
+		*ppBuffer = (Block<Type, IndexT>*)(m_BlockBuffer
+								+ GetBufferOffset<TypeListT, Type, IndexT, 0>::Offset(1, m_BlockCount));
+		*pCount = m_BlockCount[TypeListIndexOf<TypeListT, Type>::Index];
+		return *ppBuffer;
 	}
 
 	template<typename Type>
