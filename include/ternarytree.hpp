@@ -215,20 +215,56 @@ public:
 			pRootNodeIdx = &pRootNode->Head.CenterIndex;
 		}
 
-		TreeNodeType* pNode = NULL;
-		m_NodeBlockTable.GetBlock(*pRootNodeIdx, &pNode);
-		pNode = TreeNodeMinimum(pNode);
-		iter.LayerIndexVector.push_back(m_NodeBlockTable.GetBlockID(pNode));
+		MinimumString(&iter, *pRootNodeIdx);
 		return iter;
 	}
 
-	size_t Next(TernaryTreeIterator* pIter, KeyT* pKeyString, size_t size)
+	ValueT* Next(TernaryTreeIterator* pIter, KeyT* pKeyString = NULL, size_t size = 0, size_t* pwsize = NULL)
 	{
-		if(!pIter)
-			return 0;
+		if(!pIter || pIter->LayerIndexVector.empty())
+			return NULL;
 
+		ValueT* pValue = NULL;
+		TreeNodeType* pLeafNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pIter->LayerIndexVector.back(), &pLeafNode) && IsLeaf(pLeafNode))
+			m_NodeBlockTable.GetBlock(pLeafNode->Head.CenterIndex, &pValue);
 
-		return 0;
+		if(!pValue)
+			return NULL;
+
+		if(pKeyString)
+		{
+			size_t ret = pIter->PrefixNodeIndexVector.size() + pIter->LayerIndexVector.size();
+			if(size < ret)
+				ret = size;
+
+			size_t i = 0;
+			for(; i<ret && i<pIter->PrefixNodeIndexVector.size(); ++i)
+			{
+				IndexT idx = pIter->PrefixNodeIndexVector[i];
+
+				TreeNodeType* pNode = NULL;
+				m_NodeBlockTable.GetBlock(idx, &pNode);
+
+				pKeyString[i] = pNode->Key;
+			}
+
+			for(size_t j=0; i<ret && j<pIter->LayerIndexVector.size(); ++j, ++i)
+			{
+				IndexT idx = pIter->LayerIndexVector[j];
+
+				TreeNodeType* pNode = NULL;
+				m_NodeBlockTable.GetBlock(idx, &pNode);
+
+				pKeyString[i] = pNode->Key;
+			}
+
+			if(pwsize)
+				*pwsize = ret;
+		}
+
+		MoveNext(pIter);
+		return pValue;
 	}
 
 	void DumpTree()
@@ -268,6 +304,59 @@ protected:
 	inline void SetNodeColorBlack(TreeNodeType* pNode)
 	{
 		pNode->Head.Color = (pNode->Head.Color & NODECOLOR_LEAF) | NODECOLOR_BLACK;
+	}
+
+	void MinimumString(TernaryTreeIterator* pIter, IndexT RootIndex)
+	{
+		TreeNodeType* pRootNode = NULL;
+		while(m_NodeBlockTable.GetBlock(RootIndex, &pRootNode))
+		{
+			pRootNode = TreeNodeMinimum(pRootNode);
+			pIter->LayerIndexVector.push_back(m_NodeBlockTable.GetBlockID(pRootNode));
+
+			if(IsLeaf(pRootNode))
+				break;
+
+			RootIndex = pRootNode->Head.CenterIndex;
+		}
+	}
+
+	void MoveNext(TernaryTreeIterator* pIter)
+	{
+		while(!pIter->LayerIndexVector.empty())
+		{
+			IndexT cur = pIter->LayerIndexVector.back();
+			pIter->LayerIndexVector.pop_back();
+
+			TreeNodeType* pNode = NULL;
+			if(!m_NodeBlockTable.GetBlock(cur, &pNode))
+				continue;
+
+			TreeNodeType* pRightNode = NULL;
+			if(m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+			{
+				TreeNodeType* pMiniNode = TreeNodeMinimum(pRightNode);
+				pIter->LayerIndexVector.push_back(m_NodeBlockTable.GetBlockID(pMiniNode));
+				MinimumString(pIter, pMiniNode->Head.CenterIndex);
+				return;
+			}
+			else
+			{
+				TreeNodeType* pParentNode = NULL;
+				while(m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode) && pParentNode->Head.RightIndex == cur)
+				{
+					cur = pNode->Head.ParentIndex;
+					pNode = pParentNode;
+				}
+
+				if(!pParentNode)
+					continue;
+				
+				pIter->LayerIndexVector.push_back(pNode->Head.ParentIndex);
+				MinimumString(pIter, pParentNode->Head.CenterIndex);
+				return;
+			}
+		}
 	}
 
 	void TreeNodeRotateLeft(TreeNodeType* pNode, IndexT* pRootNodeIdx)

@@ -47,7 +47,10 @@ dict dicts[] = {
 	{"abs"},
 	{"a"},
 	{"bay"},
-	{"baby"}
+	{"baby"},
+	{"大家好"},
+	{"大学"},
+	{"大小"}
 };
 
 int main(int argc, char* argv[])
@@ -76,8 +79,30 @@ int main(int argc, char* argv[])
 
 	tt.DumpTree();
 
+	printf("\n");
+
+	const char* pPrefixStr = "大";
+	printf("prefix search: \"%s\"\n", pPrefixStr);
+
+	char buffer[10];
+	memset(buffer, 0, 10);
+
+	TernaryTree<Value>::TernaryTreeIterator iter = tt.PrefixSearch(pPrefixStr);
+
+	size_t size = 0;
+	Value* pValue = NULL;
+	while((pValue = tt.Next(&iter, buffer, 10, &size)) != NULL)
+	{
+		printf("  %s, TweetID:%u\n", buffer, pValue->TweetID);
+
+		memset(buffer, 0, size);
+	}
+
 	//fs.Flush();
 	//fs.Release();
 	return 0;
 }
+
+
+
 
