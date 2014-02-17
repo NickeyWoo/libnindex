@@ -69,12 +69,18 @@ struct TernaryTreeHead
 	IndexT RootIndex;
 } __attribute__((packed));
 
+template<typename IndexT>
+struct TernaryTreeIteratorImpl
+{
+	std::vector<IndexT> LayerIndexVector;
+	std::vector<IndexT> PrefixNodeIndexVector;
+};
+
 template<typename ValueT, typename KeyT = char, typename IndexT = uint32_t>
 class TernaryTree
 {
 public:
-	typedef IndexT TernaryTreeIterator;
-	typedef TernaryNode<KeyT, IndexT> TreeNodeType;
+	typedef TernaryTreeIteratorImpl<IndexT> TernaryTreeIterator;
 
 	static TernaryTree<ValueT, KeyT, IndexT> CreateTernaryTree(IndexT stringCount, IndexT avgStringLength)
 	{
@@ -136,16 +142,16 @@ public:
 
 	}
 
-	ValueT* Hash(const KeyT* pKeyString, bool isNew = false, size_t size = 0)
+	inline ValueT* Hash(const KeyT* pKeyString, bool isNew = false)
+	{
+		Length<KeyT> len;
+		return Hash(pKeyString, len(pKeyString), isNew);
+	}
+
+	ValueT* Hash(const KeyT* pKeyString, size_t size, bool isNew = false)
 	{
 		if(!pKeyString)
 			return NULL;
-
-		if(!size)
-		{
-			Length<KeyT> len;
-			size = len(pKeyString);
-		}
 
 		IndexT* pEmptyIdx;
 		IndexT ParentIdx;
@@ -178,15 +184,51 @@ public:
 		return pValue;
 	}
 
-	TernaryTreeIterator PrefixSearch(const KeyT* pPrefixKey, size_t size = 0)
+	inline TernaryTreeIterator PrefixSearch(const KeyT* pPrefixKey)
 	{
-		IndexT index;
-		return index;
+		Length<KeyT> len;
+		return PrefixSearch(pPrefixKey, len(pPrefixKey));
 	}
 
-	KeyT* Next(TernaryTreeIterator iter, KeyT* pKeyString, size_t* p)
+	TernaryTreeIterator PrefixSearch(const KeyT* pPrefixKey, size_t size)
 	{
-		return NULL;
+		TernaryTreeIterator iter;
+		if(!pPrefixKey)
+			return iter;
+
+		TernaryTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		IndexT* pRootNodeIdx = &pHead->RootIndex;
+		for(size_t i=0; i<size; ++i)
+		{
+			IndexT* pEmptyIdx;
+			IndexT ParentIdx;
+
+			TreeNodeType* pRootNode = FindKey(pPrefixKey[i], pRootNodeIdx, &pEmptyIdx, &ParentIdx);
+			if(pRootNode == NULL)
+			{
+				iter.PrefixNodeIndexVector.clear();
+				return iter;
+			}
+
+			iter.PrefixNodeIndexVector.push_back(m_NodeBlockTable.GetBlockID(pRootNode));
+
+			pRootNodeIdx = &pRootNode->Head.CenterIndex;
+		}
+
+		TreeNodeType* pNode = NULL;
+		m_NodeBlockTable.GetBlock(*pRootNodeIdx, &pNode);
+		pNode = TreeNodeMinimum(pNode);
+		iter.LayerIndexVector.push_back(m_NodeBlockTable.GetBlockID(pNode));
+		return iter;
+	}
+
+	size_t Next(TernaryTreeIterator* pIter, KeyT* pKeyString, size_t size)
+	{
+		if(!pIter)
+			return 0;
+
+
+		return 0;
 	}
 
 	void DumpTree()
@@ -196,31 +238,8 @@ public:
 		TreeNodeType* pNode = NULL;
 		m_NodeBlockTable.GetBlock(pHead->RootIndex, &pNode);
 
-		PrintNode(pNode);
-	}
-
-	void PrintNode(TreeNodeType* pNode)
-	{
-		if(!pNode)
-			return;
-
-		TreeNodeType* pLeftNode = NULL;
-		if(m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode))
-			PrintNode(pLeftNode);
-
-		if(IsLeaf(pNode))
-			printf("\n");
-		else
-		{
-			printf("%c", pNode->Key);
-			TreeNodeType* pCenterNode = NULL;
-			if(m_NodeBlockTable.GetBlock(pNode->Head.CenterIndex, &pCenterNode))
-				PrintNode(pCenterNode);
-		}
-
-		TreeNodeType* pRightNode = NULL;
-		if(m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
-			PrintNode(pRightNode);
+		std::vector<TreeNodeType*> vPtr;
+		PrintNode(pNode, vPtr);
 	}
 
 	inline void Dump()
@@ -229,6 +248,8 @@ public:
 	}
 
 protected:
+	typedef TernaryNode<KeyT, IndexT> TreeNodeType;
+
 	inline bool IsLeaf(TreeNodeType* pNode)
 	{
 		return (pNode->Head.Color & NODECOLOR_LEAF) == NODECOLOR_LEAF;
@@ -300,7 +321,7 @@ protected:
 		}
 
 		pNode->Head.ParentIndex = pNode->Head.LeftIndex;
-		pNode->Head.RightIndex = pLeftNode->Head.RightIndex;
+		pNode->Head.LeftIndex = pLeftNode->Head.RightIndex;
 
 		TreeNodeType* pLeftRightNode = NULL;
 		if(m_NodeBlockTable.GetBlock(pLeftNode->Head.RightIndex, &pLeftRightNode))
@@ -525,6 +546,44 @@ protected:
 			}
 		}
 		return NULL;
+	}
+
+	void PrintNode(TreeNodeType* pNode, std::vector<TreeNodeType*>& vPtr)
+	{
+		if(!pNode)
+			return;
+
+		TreeNodeType* pLeftNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode))
+			PrintNode(pLeftNode, vPtr);
+
+		if(IsLeaf(pNode))
+		{
+			ValueT* pValue = NULL;
+			m_NodeBlockTable.GetBlock(pNode->Head.CenterIndex, &pValue);
+
+			for(typename std::vector<TreeNodeType*>::iterator iter = vPtr.begin();
+				iter != vPtr.end();
+				++iter)
+			{
+				printf("%s", KeySerialization<KeyT>::Serialization((*iter)->Key).c_str());
+			}
+			printf(" Value:%s\n", KeySerialization<ValueT>::Serialization(*pValue).c_str());
+		}
+		else
+		{
+			TreeNodeType* pCenterNode = NULL;
+			if(m_NodeBlockTable.GetBlock(pNode->Head.CenterIndex, &pCenterNode))
+			{
+				vPtr.push_back(pNode);
+				PrintNode(pCenterNode, vPtr);
+			}
+			vPtr.pop_back();
+		}
+
+		TreeNodeType* pRightNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+			PrintNode(pRightNode, vPtr);
 	}
 
 	MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), TernaryTreeHead<IndexT>, IndexT> m_NodeBlockTable;

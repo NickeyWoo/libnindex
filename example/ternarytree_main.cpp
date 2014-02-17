@@ -24,10 +24,31 @@
 
 struct Value
 {
-	uint64_t TweetID;
+	uint32_t TweetID;
 } __attribute__((packed));
 
-#define INSERT_NUM	10
+template<>
+struct KeySerialization<Value>
+{
+	static std::string Serialization(Value val)
+	{
+		uint32_t tid = val.TweetID;
+		return (boost::format("TweetID:%u") % tid).str();
+	}
+};
+
+struct dict
+{
+	const char* str;
+};
+
+dict dicts[] = {
+	{"alpha"},
+	{"abs"},
+	{"a"},
+	{"bay"},
+	{"baby"}
+};
 
 int main(int argc, char* argv[])
 {
@@ -40,29 +61,20 @@ int main(int argc, char* argv[])
 	}
 	TernaryTree<Value> tt = TernaryTree<Value>::LoadTernaryTree(fs, 100, 10);
 */
-	TernaryTree<Value> tt = TernaryTree<Value>::CreateTernaryTree(INSERT_NUM, 10);
+	TernaryTree<Value> tt = TernaryTree<Value>::CreateTernaryTree(sizeof(dicts)/sizeof(dict), 10);
 
 	printf("dicts:\n");
-	for(size_t i=0; i<INSERT_NUM; ++i)
+	for(size_t i=0; i<sizeof(dicts)/sizeof(dict); ++i)
 	{
-		char buffer[9];
-		memset(buffer, 0, 9);
-
-		size_t lenString = random() % 8;
-		for(size_t j=0; j<lenString; ++j)
-		{
-			buffer[j] = 0x21 + random() % 0x5D;
-		}
-		printf("[%lu]: %s\n", i, buffer);
-		
-		Value* pValue = tt.Hash(buffer, true);
+		Value* pValue = tt.Hash(dicts[i].str, true);
 		if(!pValue)
 			break;
 
+		printf("[%lu] %s\n", i, dicts[i].str);
 		pValue->TweetID = i;
-
-		tt.DumpTree();
 	}
+
+	tt.DumpTree();
 
 	//fs.Flush();
 	//fs.Release();

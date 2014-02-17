@@ -24,7 +24,7 @@ struct KeySerialization<char>
 {
 	static std::string Serialization(char key)
 	{
-		return std::string(key, 1);
+		return std::string(1, key);
 	}
 };
 
