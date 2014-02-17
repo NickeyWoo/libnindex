@@ -185,40 +185,24 @@ N-Index is common data index and storage library.
 
 **TernarySearchTree** [ternarytree_main.cpp][9]
 ```c++
-	struct Value
-	{
+	struct Value {
 		uint32_t TweetID;
 	} __attribute__((packed));
 
-	struct dict
-	{
+	struct dict {
 		const char* str;
-	};
-
-	dict dicts[] = {
-		{"alpha"},
-		{"abs"},
-		{"a"},
-		{"bay"},
-		{"baby"},
-		{"大家好"},
-		{"大学"},
-		{"大小"}
-	};
+	} dicts[] = { {"alpha"}, {"abs"}, {"a"}, {"bay"}, {"baby"}, {"大家好"}, {"大学"}, {"大小"} };
 
 	TernaryTree<Value> tt = TernaryTree<Value>::CreateTernaryTree(sizeof(dicts)/sizeof(dict), 10);
-	for(size_t i=0; i<sizeof(dicts)/sizeof(dict); ++i)
-	{
+	for(size_t i=0; i<sizeof(dicts)/sizeof(dict); ++i) {
 		Value* pValue = tt.Hash(dicts[i].str, true);
 		if(!pValue)
 			break;
-
 		pValue->TweetID = i;
 	}
 
 	const char* pPrefixStr = "大";
 	TernaryTree<Value>::TernaryTreeIterator iter = tt.PrefixSearch(pPrefixStr);
-
 	char buffer[10];
 	memset(buffer, 0, 10);
 	size_t size = 0;
