@@ -315,6 +315,36 @@ public:
 		PrintNode(pNode, vPtr);
 	}
 
+	inline void DumpRBTree(const KeyT* pKeyString)
+	{
+		Length<KeyT> len;
+		DumpRBTree(pKeyString, len(pKeyString));
+	}
+
+	void DumpRBTree(const KeyT* pKeyString, size_t size)
+	{
+		IndexT* pEmptyIdx;
+		IndexT ParentIdx;
+
+		TernaryTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		IndexT* pRootNodeIdx = &pHead->RootIndex;
+		for(size_t i=0; i<size; ++i)
+		{
+			TreeNodeType* pRootNode = FindKey(pKeyString[i], pRootNodeIdx, &pEmptyIdx, &ParentIdx);
+			if(pRootNode == NULL)
+				return;
+
+			pRootNodeIdx = &pRootNode->Head.CenterIndex;
+		}
+
+		std::vector<bool> flags;
+		flags.push_back(false);
+
+		TreeNodeType* pNode = NULL;
+		m_NodeBlockTable.GetBlock(*pRootNodeIdx, &pNode);
+		PrintRBNode(pNode, 0, false, flags);
+	}
+
 	inline void Dump()
 	{
 		m_NodeBlockTable.Dump();
@@ -940,6 +970,59 @@ protected:
 		if(m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
 			PrintNode(pRightNode, vPtr);
 	}
+
+	void PrintRBNode(TreeNodeType* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
+	{
+		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(node);
+		if(layer > 0)
+		{
+			for(uint32_t c=0; c<layer; ++c)
+			{
+				if(flags.at(c))
+					printf("\033[37m|    \033[0m");
+				else
+					printf("     ");
+			}
+			if(isRight)
+				printf("\033[37m\\-\033[0m");
+			else
+				printf("\033[37m|-\033[0m");
+			if(node)
+				printf("\033[%sm%snode: (%s)[%s][p%u:c%u:l%u:r%u]\033[0m\n", IsRed(node)?"31":"34", isRight?"r":"l", IsLeaf(node)?"leaf":KeySerialization<KeyT>::Serialization(node->Key).c_str(), IsBlack(node)?"black":"red", node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+			else
+			{
+				printf("\033[37m%snode: (null)\033[0m\n", isRight?"r":"l");
+				return;
+			}
+		}
+		else
+		{
+			printf("\033[37m\\-\033[0m");
+			if(node)
+				printf("\033[%smroot: (%s)[%s][p%u:c%u:l%u:r%u]\033[0m\n", IsRed(node)?"31":"34", IsLeaf(node)?"leaf":KeySerialization<KeyT>::Serialization(node->Key).c_str(), IsBlack(node)?"black":"red", node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+			else
+			{
+				printf("\033[37mroot: (null)\033[0m\n");
+				return;
+			}
+		}
+	
+		if(isRight)
+			flags.at(layer) = false;
+		else if(layer > 0)
+			flags.at(layer) = true;
+
+		flags.push_back(true);
+		TreeNodeType* leftNode = NULL;
+		m_NodeBlockTable.GetBlock(node->Head.LeftIndex, &leftNode);
+		PrintRBNode(leftNode, layer+1, false, flags);
+
+		TreeNodeType* rightNode = NULL;
+		m_NodeBlockTable.GetBlock(node->Head.RightIndex, &rightNode);
+		PrintRBNode(rightNode, layer+1, true, flags);
+	}
+
+
 
 	MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), TernaryTreeHead<IndexT>, IndexT> m_NodeBlockTable;
 

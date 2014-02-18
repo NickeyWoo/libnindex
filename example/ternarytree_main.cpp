@@ -77,7 +77,13 @@ int main(int argc, char* argv[])
 		pValue->TweetID = i;
 	}
 
+	printf("\n");
+	printf("DumpTree:\n");
 	tt.DumpTree();
+
+	printf("\n");
+	printf("DumpRBTree:\n");
+	tt.DumpRBTree("a");
 
 	tt.Clear("abc");
 	tt.Clear("address");
@@ -86,6 +92,9 @@ int main(int argc, char* argv[])
 	tt.Clear("alpha");
 	tt.Clear("a");
 
+	printf("\n");
+	printf("DumpRBTree:(remove element)\n");
+	tt.DumpRBTree("a");
 	printf("\n");
 
 	char buffer[20];
