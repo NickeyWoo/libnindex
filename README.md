@@ -3,6 +3,7 @@ N-Index is common data index and storage library.
 
 ## Index Struct ##
 * **HashTable**
+* **TimerHashTable**
 * **Bitmap**
 * **BloomFilter**
 * **BlockTable**
@@ -13,7 +14,7 @@ N-Index is common data index and storage library.
 * **TernarySearchTree**
 
 ## Example ##
-**HashTable:** [hashtable_main.cpp][2]
+**HashTable / TimerHashTable** [hashtable_main.cpp][2]
 ```c++
 	struct MyKey {
 		uint64_t ddwUserId;
@@ -38,7 +39,7 @@ N-Index is common data index and storage library.
 		printf("name: %s\n", pItem->sName);
 ```
 
-**Bitmap:** [bitmap_main.cpp][3]
+**Bitmap** [bitmap_main.cpp][3]
 ```c++
 	Bitmap<uint64_t> bm = Bitmap<uint64_t>::CreateBitmap(4096);
 
