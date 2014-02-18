@@ -127,19 +127,56 @@ public:
 		m_NodeBlockTable.Delete();
 	}
 
-	void Clear(const KeyT* pKeyString, size_t size = 0)
+	inline void Clear(const KeyT* pKeyString)
+	{
+		Length<KeyT> len;
+		Clear(pKeyString, len(pKeyString));
+	}
+
+	void Clear(const KeyT* pKeyString, size_t size)
 	{
 		if(!pKeyString)
 			return;
 
-		if(!size)
-		{
-			Length<KeyT> len;
-			size = len(pKeyString);
-		}
+		IndexT* pEmptyIdx;
+		IndexT ParentIdx;
+
+		std::vector<std::pair<TreeNodeType*, IndexT*> > vNodePtr;
 
 		TernaryTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		IndexT* pRootNodeIdx = &pHead->RootIndex;
+		for(size_t i=0; i<size; ++i)
+		{
+			TreeNodeType* pRootNode = FindKey(pKeyString[i], pRootNodeIdx, &pEmptyIdx, &ParentIdx);
+			if(pRootNode == NULL)
+				return;
+			vNodePtr.push_back(std::make_pair(pRootNode, pRootNodeIdx));
 
+			pRootNodeIdx = &pRootNode->Head.CenterIndex;
+		}
+
+		TreeNodeType* pLeafNode = FindLeaf(pRootNodeIdx, &pEmptyIdx, &ParentIdx);
+		if(pLeafNode == NULL)
+			return;
+		vNodePtr.push_back(std::make_pair(pLeafNode, pRootNodeIdx));
+
+		ValueT* pValue = NULL;
+		if(m_NodeBlockTable.GetBlock(pLeafNode->Head.CenterIndex, &pValue))
+			m_NodeBlockTable.ReleaseBlock(pValue);
+
+		for(typename std::vector<std::pair<TreeNodeType*, IndexT*> >::size_type i = vNodePtr.size() - 1;
+			i >= 0;
+			--i)
+		{
+			TreeNodeType* pNode = vNodePtr[i].first;
+			IndexT* pRootNodeIdx = vNodePtr[i].second;
+
+			bool hasLayerBrother = HasLayerBrother(pNode);
+			ClearNode(pNode, pRootNodeIdx);
+
+			if(hasLayerBrother)
+				break;
+		}
 	}
 
 	inline ValueT* Hash(const KeyT* pKeyString, bool isNew = false)
@@ -291,6 +328,11 @@ protected:
 		return (pNode->Head.Color & NODECOLOR_LEAF) == NODECOLOR_LEAF;
 	}
 
+	inline bool IsBlack(TreeNodeType* pNode)
+	{
+		return (pNode->Head.Color & NODECOLOR_BLACK) == NODECOLOR_BLACK;
+	}
+
 	inline bool IsRed(TreeNodeType* pNode)
 	{
 		return (pNode->Head.Color & NODECOLOR_BLACK) != NODECOLOR_BLACK;
@@ -304,6 +346,230 @@ protected:
 	inline void SetNodeColorBlack(TreeNodeType* pNode)
 	{
 		pNode->Head.Color = (pNode->Head.Color & NODECOLOR_LEAF) | NODECOLOR_BLACK;
+	}
+
+	void ClearFixup(TreeNodeType* pNode, TreeNodeType* pParentNode, IndexT* pRootNodeIdx)
+	{
+		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+		while((!pNode || IsBlack(pNode)) && nodeIndex != *pRootNodeIdx)
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+			{
+				TreeNodeType* pBrotherNode = NULL;
+				m_NodeBlockTable.GetBlock(pParentNode->Head.RightIndex, &pBrotherNode);
+				if(IsRed(pBrotherNode))
+				{
+					SetNodeColorBlack(pBrotherNode);
+					SetNodeColorRed(pParentNode);
+					TreeNodeRotateLeft(pParentNode, pRootNodeIdx);
+
+					m_NodeBlockTable.GetBlock(pParentNode->Head.RightIndex, &pBrotherNode);
+				}
+
+				TreeNodeType* pBrotherLeftNode = NULL;
+				m_NodeBlockTable.GetBlock(pBrotherNode->Head.LeftIndex, &pBrotherLeftNode);
+
+				TreeNodeType* pBrotherRightNode = NULL;
+				m_NodeBlockTable.GetBlock(pBrotherNode->Head.RightIndex, &pBrotherRightNode);
+				if((!pBrotherLeftNode || IsBlack(pBrotherLeftNode)) &&
+					(!pBrotherRightNode || IsBlack(pBrotherRightNode)))
+				{
+					SetNodeColorRed(pBrotherNode);
+
+					nodeIndex = m_NodeBlockTable.GetBlockID(pParentNode);
+					pNode = pParentNode;
+					m_NodeBlockTable.GetBlock(pParentNode->Head.ParentIndex, &pParentNode);
+				}
+				else
+				{
+					if(!pBrotherRightNode || IsBlack(pBrotherRightNode))
+					{
+						SetNodeColorBlack(pBrotherLeftNode);
+						SetNodeColorRed(pBrotherNode);
+						TreeNodeRotateRight(pBrotherNode, pRootNodeIdx);
+
+						pBrotherRightNode = pBrotherNode;
+						pBrotherNode = pBrotherLeftNode;
+					}
+
+					if(IsBlack(pParentNode))
+						SetNodeColorBlack(pBrotherNode);
+					else
+						SetNodeColorRed(pBrotherNode);
+					SetNodeColorBlack(pParentNode);
+					SetNodeColorBlack(pBrotherRightNode);
+					TreeNodeRotateLeft(pParentNode, pRootNodeIdx);
+
+					m_NodeBlockTable.GetBlock(*pRootNodeIdx, &pNode);
+					break;
+				}
+			}
+			else
+			{
+				TreeNodeType* pBrotherNode = NULL;
+				m_NodeBlockTable.GetBlock(pParentNode->Head.LeftIndex, &pBrotherNode);
+				if(IsRed(pBrotherNode))
+				{
+					SetNodeColorBlack(pBrotherNode);
+					SetNodeColorRed(pParentNode);
+					TreeNodeRotateRight(pParentNode, pRootNodeIdx);
+
+					m_NodeBlockTable.GetBlock(pParentNode->Head.LeftIndex, &pBrotherNode);
+				}
+
+				TreeNodeType* pBrotherLeftNode = NULL;
+				m_NodeBlockTable.GetBlock(pBrotherNode->Head.LeftIndex, &pBrotherLeftNode);
+
+				TreeNodeType* pBrotherRightNode = NULL;
+				m_NodeBlockTable.GetBlock(pBrotherNode->Head.RightIndex, &pBrotherRightNode);
+				if((!pBrotherLeftNode || IsBlack(pBrotherLeftNode)) &&
+					(!pBrotherRightNode || IsBlack(pBrotherRightNode)))
+				{
+					SetNodeColorRed(pBrotherNode);
+
+					nodeIndex = m_NodeBlockTable.GetBlockID(pParentNode);
+					pNode = pParentNode;
+					m_NodeBlockTable.GetBlock(pParentNode->Head.ParentIndex, &pParentNode);
+				}
+				else
+				{
+					if(!pBrotherLeftNode || IsBlack(pBrotherLeftNode))
+					{
+						SetNodeColorBlack(pBrotherRightNode);
+						SetNodeColorRed(pBrotherNode);
+						TreeNodeRotateLeft(pBrotherNode, pRootNodeIdx);
+
+						pBrotherLeftNode = pBrotherNode;
+						pBrotherNode = pBrotherRightNode;
+					}
+
+					if(IsBlack(pParentNode))
+						SetNodeColorBlack(pBrotherNode);
+					else
+						SetNodeColorRed(pBrotherNode);
+					SetNodeColorBlack(pParentNode);
+					SetNodeColorBlack(pBrotherLeftNode);
+					TreeNodeRotateRight(pParentNode, pRootNodeIdx);
+
+					m_NodeBlockTable.GetBlock(*pRootNodeIdx, &pNode);
+					break;
+				}
+			}
+		}
+
+		if(pNode)
+			SetNodeColorBlack(pNode);
+	}
+
+	void TreeNodeTransplantLeft(TreeNodeType* pNode, IndexT nodeIndex, IndexT* pRootNodeIdx)
+	{
+		if(!pNode || !pRootNodeIdx)
+			return;
+
+		TreeNodeType* pLeftNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode))
+			pLeftNode->Head.ParentIndex = pNode->Head.ParentIndex;
+
+		TreeNodeType* pParentNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode))
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+				pParentNode->Head.LeftIndex = pNode->Head.LeftIndex;
+			else
+				pParentNode->Head.RightIndex = pNode->Head.LeftIndex;
+		}
+		else
+			*pRootNodeIdx = pNode->Head.LeftIndex;
+	}
+
+	void TreeNodeTransplantRight(TreeNodeType* pNode, IndexT nodeIndex, IndexT* pRootNodeIdx)
+	{
+		if(!pNode || !pRootNodeIdx)
+			return;
+
+		TreeNodeType* pRightNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+			pRightNode->Head.ParentIndex = pNode->Head.ParentIndex;
+
+		TreeNodeType* pParentNode = NULL;
+		if(m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode))
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+				pParentNode->Head.LeftIndex = pNode->Head.RightIndex;
+			else
+				pParentNode->Head.RightIndex = pNode->Head.RightIndex;
+		}
+		else
+			*pRootNodeIdx = pNode->Head.RightIndex;
+	}
+
+	void ClearOneChildNode(TreeNodeType* pNode, IndexT* pRootNodeIdx)
+	{
+		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+
+		bool needFixup = IsBlack(pNode);
+
+		TreeNodeType* pFixParentNode = NULL;
+		m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pFixParentNode);
+
+		TreeNodeType* pFixNode = NULL;
+		TreeNodeType* pLeftNode = NULL;
+		TreeNodeType* pRightNode = NULL;
+		m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode);
+		m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode);
+
+		if(pLeftNode == NULL)
+		{
+			TreeNodeTransplantRight(pNode, nodeIndex, pRootNodeIdx);
+			pFixNode = pRightNode;
+		}
+		else
+		{
+			TreeNodeTransplantLeft(pNode, nodeIndex, pRootNodeIdx);
+			pFixNode = pLeftNode;
+		}
+
+		m_NodeBlockTable.ReleaseBlock(pNode);
+
+		if(needFixup)
+			ClearFixup(pFixNode, pFixParentNode, pRootNodeIdx);
+	}
+
+	void ClearNode(TreeNodeType* pNode, IndexT* pRootNodeIdx)
+	{
+		if(!pNode)
+			return;
+
+		TreeNodeType* pLeftNode = NULL;
+		TreeNodeType* pRightNode = NULL;
+		if(!m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode) ||
+			!m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+		{
+			ClearOneChildNode(pNode, pRootNodeIdx);
+		}
+		else
+		{
+			TreeNodeType* pMiniNode = TreeNodeMinimum(pRightNode);
+
+			// clone key and clear mini node
+			pNode->Key = pMiniNode->Key;
+
+			ClearOneChildNode(pMiniNode, pRootNodeIdx);
+		}
+	}
+
+	bool HasLayerBrother(TreeNodeType* pNode)
+	{
+		TreeNodeType* pParentNode = NULL;
+		TreeNodeType* pLeftNode = NULL;
+		TreeNodeType* pRightNode = NULL;
+
+		if(m_NodeBlockTable.GetBlock(pNode->Head.ParentIndex, &pParentNode) ||
+			m_NodeBlockTable.GetBlock(pNode->Head.LeftIndex, &pLeftNode) ||
+			m_NodeBlockTable.GetBlock(pNode->Head.RightIndex, &pRightNode))
+			return true;
+		else
+			return false;
 	}
 
 	void MinimumString(TernaryTreeIterator* pIter, IndexT RootIndex)

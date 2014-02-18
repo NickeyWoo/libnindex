@@ -22,30 +22,32 @@
 #include "storage.hpp"
 #include "ternarytree.hpp"
 
-struct Value
-{
+struct Value {
 	uint32_t TweetID;
 } __attribute__((packed));
 
 template<>
-struct KeySerialization<Value>
-{
-	static std::string Serialization(Value val)
-	{
+struct KeySerialization<Value> {
+	static std::string Serialization(Value val) {
 		uint32_t tid = val.TweetID;
 		return (boost::format("TweetID:%u") % tid).str();
 	}
 };
 
-struct dict
-{
+struct dict {
 	const char* str;
-};
-
-dict dicts[] = {
+} dicts[] = {
 	{"alpha"},
 	{"abs"},
 	{"a"},
+	{"abstract"},
+	{"application"},
+	{"address"},
+	{"available"},
+	{"access"},
+	{"at"},
+	{"apple"},
+	{"account"},
 	{"bay"},
 	{"baby"},
 	{"大家好"},
@@ -72,29 +74,33 @@ int main(int argc, char* argv[])
 		Value* pValue = tt.Hash(dicts[i].str, true);
 		if(!pValue)
 			break;
-
-		printf("[%lu] %s\n", i, dicts[i].str);
 		pValue->TweetID = i;
 	}
 
 	tt.DumpTree();
 
+	tt.Clear("abc");
+	tt.Clear("address");
+	tt.Clear("access");
+	tt.Clear("account");
+	tt.Clear("alpha");
+	tt.Clear("a");
+
 	printf("\n");
 
-	const char* pPrefixStr = "大";
+	char buffer[20];
+	memset(buffer, 0, 20);
+
+//	const char* pPrefixStr = "大";
+	const char* pPrefixStr = "a";
 	printf("prefix search: \"%s\"\n", pPrefixStr);
-
-	char buffer[10];
-	memset(buffer, 0, 10);
-
 	TernaryTree<Value>::TernaryTreeIterator iter = tt.PrefixSearch(pPrefixStr);
 
 	size_t size = 0;
 	Value* pValue = NULL;
-	while((pValue = tt.Next(&iter, buffer, 10, &size)) != NULL)
+	while((pValue = tt.Next(&iter, buffer, 20, &size)) != NULL)
 	{
 		printf("  %s, TweetID:%u\n", buffer, pValue->TweetID);
-
 		memset(buffer, 0, size);
 	}
 
