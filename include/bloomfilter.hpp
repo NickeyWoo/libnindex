@@ -8,6 +8,7 @@
 #ifndef __BLOOMFILTER_HPP__
 #define __BLOOMFILTER_HPP__
 
+#include <math.h>
 #include <utility>
 #include <string>
 #include <time.h>
@@ -47,6 +48,18 @@ public:
 		bf.m_kNum = k;
 		bf.m_Bitmap = Bitmap<uint64_t>::LoadBitmap(storage);
 		return bf;
+	}
+
+	static inline size_t GetBufferSize(size_t n, double pError)
+	{
+		double sz = 0 - log(pError) * n / pow(log(2), 2);
+		return ceil(sz / 8);
+	}
+
+	static inline size_t GetK(size_t n, double pError)
+	{
+		size_t m = GetBufferSize(n, pError) * 8;
+		return m * log(2) / n;
 	}
 
 	void Delete()

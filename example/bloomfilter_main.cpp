@@ -22,26 +22,32 @@
 #include "storage.hpp"
 #include "bitmap.hpp"
 #include "bloomfilter.hpp"
+#include "hashtable.hpp"
+
+#define INSERT_NUM 1000
 
 int main(int argc, char* argv[])
 {
-	BloomFilter<std::string> bf = BloomFilter<std::string>::CreateBloomFilter(4096, 16);
+	size_t size = BloomFilter<std::string>::GetBufferSize(INSERT_NUM, 0.001);
+	size_t k = BloomFilter<std::string>::GetK(INSERT_NUM, 0.001);
+	BloomFilter<std::string> bf = BloomFilter<std::string>::CreateBloomFilter(size, k);
 
-	uint32_t i=0;
-	for(; i<5000; ++i)
+	double success = 0;
+	for(uint32_t i=0; i<INSERT_NUM; ++i)
 	{
 		std::string strUrl = (boost::format("http://voanews.com/article/%u") % i).str();
 		if(bf.Contains(strUrl))
 			break;
 
-		printf("crawl url[%s]...\n", strUrl.c_str());
+		++success;
+		//printf("crawl url[%s]...\n", strUrl.c_str());
 		bf.Add(strUrl);
 	}
 
-	printf("set count: %u\n", i);
+	printf("success count: %u[size:%lu, k:%lu]\n", (uint32_t)success, size, k);
 
 	// dump bloomfilter bitmap buffer
-	bf.Dump();
+	// bf.Dump();
 
 	bf.Delete();
 	return 0;
