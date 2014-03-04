@@ -291,7 +291,7 @@ struct KeyTranslate<std::string>
 	typedef std::string KeyType;
 	typedef uint64_t HeadType;
 
-	static inline uint64_t Translate(std::string& key)
+	static inline uint64_t Translate(std::string key)
 	{
 		return Hash64(key.c_str(), key.length());
 	}
