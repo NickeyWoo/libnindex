@@ -57,7 +57,7 @@ public:
 	template<typename StorageT>
 	static inline HeapT<KeyT, ValueT> LoadHeap(StorageT storage)
 	{
-		return LoadHeap(storage.GetBuffer(), storage.GetSize());
+		return LoadHeap(storage.GetStorageBuffer(), storage.GetSize());
 	}
 
 	static inline size_t GetBufferSize(size_t size)

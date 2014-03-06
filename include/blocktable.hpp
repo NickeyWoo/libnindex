@@ -76,7 +76,7 @@ public:
 	template<typename StorageT>
 	static inline BlockTable<ValueT, HeadT, IndexT> LoadBlockTable(StorageT storage)
 	{
-		return LoadBlockTable(storage.GetBuffer(), storage.GetSize());
+		return LoadBlockTable(storage.GetStorageBuffer(), storage.GetSize());
 	}
 
 	static inline size_t GetBufferSize(IndexT size)

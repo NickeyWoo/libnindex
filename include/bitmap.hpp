@@ -45,7 +45,7 @@ public:
 	static Bitmap<KeyT> LoadBitmap(StorageT storage)
 	{
 		Bitmap<KeyT> bitmap;
-		bitmap.m_BitmapBuffer = storage.GetBuffer();
+		bitmap.m_BitmapBuffer = storage.GetStorageBuffer();
 		bitmap.m_BufferSize = storage.GetSize();
 		bitmap.m_Seed = GetPrime(bitmap.m_BufferSize * 8);
 		return bitmap;

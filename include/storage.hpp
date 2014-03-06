@@ -22,7 +22,7 @@ public:
 	FileStorage();
 	void Flush();
 
-	inline char* GetBuffer()
+	inline char* GetStorageBuffer()
 	{
 		return m_Buffer;
 	}
@@ -46,7 +46,7 @@ public:
 
 	SharedMemoryStorage();
 	
-	inline char* GetBuffer(size_t pos)
+	inline char* GetStorageBuffer()
 	{
 		return m_Buffer;
 	}

@@ -109,7 +109,7 @@ public:
 	template<typename StorageT>
 	static inline TernaryTree<ValueT, KeyT, IndexT> LoadTernaryTree(StorageT storage, IndexT stringCount, IndexT avgStringLength)
 	{
-		return LoadTernaryTree(storage.GetBuffer(), storage.GetSize(), stringCount, avgStringLength);
+		return LoadTernaryTree(storage.GetStorageBuffer(), storage.GetSize(), stringCount, avgStringLength);
 	}
 
 	static inline size_t GetBufferSize(IndexT stringCount, IndexT avgStringLength)

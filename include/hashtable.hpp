@@ -74,7 +74,7 @@ public:
 	{
 		HashTableT<KeyT, ValueT> ht;
 
-		ht.m_PrimeBuffer = seed.GetBuffer();
+		ht.m_PrimeBuffer = seed.GetSeedBuffer();
 		ht.m_PrimeCount = seed.GetSize();
 
 		ht.m_NodeBuffer = buffer;
@@ -87,10 +87,10 @@ public:
 	{
 		HashTableT<KeyT, ValueT> ht;
 
-		ht.m_PrimeBuffer = seed.GetBuffer();
+		ht.m_PrimeBuffer = seed.GetSeedBuffer();
 		ht.m_PrimeCount = seed.GetSize();
 
-		ht.m_NodeBuffer = (HashNode<KeyT, ValueT, HeadT>*)storage.GetBuffer();
+		ht.m_NodeBuffer = (HashNode<KeyT, ValueT, HeadT>*)storage.GetStorageBuffer();
 		ht.m_NodeBufferSize = storage.GetSize();
 		return ht;
 	}

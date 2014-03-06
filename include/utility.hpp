@@ -99,7 +99,7 @@ public:
 	size_t GetCount();
 	void Release();
 
-	inline size_t* GetBuffer()
+	inline size_t* GetSeedBuffer()
 	{
 		return m_Buffer;
 	}
