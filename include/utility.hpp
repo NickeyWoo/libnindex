@@ -75,8 +75,10 @@ public:
 	enum { Index = (temp == -1)?-1:(1 + temp) };
 };
 
-#define ntohll(val)	\
-		((uint64_t)ntohl(0xFFFFFFFF&val) << 32 | ntohl((0xFFFFFFFF00000000&val) >> 32))
+#ifndef ntohll
+	#define ntohll(val)	\
+			((uint64_t)ntohl(0xFFFFFFFF&val) << 32 | ntohl((0xFFFFFFFF00000000&val) >> 32))
+#endif
 
 typedef std::pair<uint64_t, uint64_t> uint128_t;
 
