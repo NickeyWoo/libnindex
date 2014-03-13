@@ -401,8 +401,7 @@ struct KeyTranslate<float>
 
 	static inline uint32_t Translate(float key)
 	{
-		float* pkey = &key;
-		return *(reinterpret_cast<uint32_t*>(pkey));
+		return alias_cast<uint32_t>(key);
 	}
 };
 
@@ -414,8 +413,7 @@ struct KeyTranslate<double>
 
 	static inline uint64_t Translate(double key)
 	{
-		double* pkey = &key;
-		return *(reinterpret_cast<uint64_t*>(pkey));
+		return alias_cast<uint64_t>(key);
 	}
 };
 
