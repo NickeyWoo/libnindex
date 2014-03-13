@@ -264,7 +264,7 @@ public:
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
 
 			if(pEmptyNode == NULL && (pNode->Key.KeyValue == 0 || pNode->Key.Timestamp <= now))
 				pEmptyNode = pNode;
@@ -299,7 +299,7 @@ public:
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
 
 			if(pNode->Key.KeyValue == headKey)
 			{
@@ -326,7 +326,7 @@ public:
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
 
 			if(pNode->Key.KeyValue == headKey)
 			{
