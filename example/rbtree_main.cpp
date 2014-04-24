@@ -76,17 +76,19 @@ struct KeySerialization<Key>
 	}
 };
 
-#define INSERT_NUM 40
-#define DELETE_NUM 20
+#define INSERT_NUM 20
+#define DELETE_NUM 10
 
 int main(int argc, char* argv[])
 {
 /*
 	FileStorage storage;
-	FileStorage::OpenStorage(&storage, "rbtree.data", RBTree<Key, uint32_t>::GetBufferSize(INSERT_NUM));
-	RBTree<Key, uint32_t> rbtree = RBTree<Key, uint32_t>::LoadRBTree(storage);
+	FileStorage::OpenStorage(&storage, "rbtree.data", RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::GetBufferSize(INSERT_NUM));
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)> rbtree = 
+		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::LoadRBTree(storage);
 */
-	RBTree<Key, uint32_t> rbtree = RBTree<Key, uint32_t>::CreateRBTree(INSERT_NUM);
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)> rbtree = 
+		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::CreateRBTree(INSERT_NUM);
 
 	Key delKeyBuffer[DELETE_NUM];
 	for(int i=0; i<INSERT_NUM; ++i)
@@ -105,9 +107,6 @@ int main(int argc, char* argv[])
 
 		uint32_t u = 1 * i;
 		rbtree.SetAddition(key, u);
-
-		double d = 0.1 * i;
-		rbtree.SetAddition(key, d);
 	}
 
 	Key maxKey;
@@ -129,7 +128,7 @@ int main(int argc, char* argv[])
 
 	Key key;
 	uint32_t* pValue = NULL;
-	RBTree<Key, uint32_t>::RBTreeIterator iter = rbtree.Iterator();
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::RBTreeIterator iter = rbtree.Iterator();
 	while((pValue = rbtree.Next(&iter, &key)))
 	{
 		printf("Next:%02u Key:(%s)\n", iter.Index, KeySerialization<Key>::Serialization(key).c_str());
@@ -141,7 +140,7 @@ int main(int argc, char* argv[])
 	iter = rbtree.Iterator(vkeyBegin);
 
 	Key vkeyEnd = {2, 0, 0};
-	RBTree<Key, uint32_t>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
 
 	printf("Count:%u\n", rbtree.Count(iter, iterEnd));
 	while(iter != iterEnd && (pValue = rbtree.Next(&iter, &key)))

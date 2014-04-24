@@ -984,8 +984,7 @@ public:
 };
 
 template<typename KeyT, typename ValueT, 
-//	typename AdditionListT = NullType, typename IndexT = uint32_t>
-	typename AdditionListT = TYPELIST_3(CountAddition<uint32_t>, SumAddition<double>, SumAddition<uint32_t>), typename IndexT = uint32_t>
+	typename AdditionListT = NullType, typename IndexT = uint32_t>
 class RBTree :
 	public RBTreeImpl<KeyT, ValueT, AdditionListT, IndexT, RBTreeNode<KeyT, ValueT, AdditionListT, IndexT> >
 {
