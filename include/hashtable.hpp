@@ -11,6 +11,7 @@
 #include <utility>
 #include <string>
 #include <time.h>
+#include <sys/time.h>
 #include "utility.hpp"
 #include "keyutility.hpp"
 #include "storage.hpp"
@@ -19,23 +20,94 @@
 	#define TIMERHASHTABLE_TIMEOUT	-1
 #endif
 
+struct SecondTimeProvider
+{
+	typedef time_t TimeType;
+
+	inline TimeType Now()
+	{
+		return time(NULL);
+	}
+
+	inline TimeType Before(TimeType v1, TimeType v2)
+	{
+		return v1 - v2;
+	}
+
+	inline TimeType After(TimeType v1, TimeType v2)
+	{
+		return v1 + v2;
+	}
+
+	inline int Compare(TimeType v1, TimeType v2)
+	{
+		if(v1 > v2)
+			return 1;
+		else if(v1 < v2)
+			return -1;
+		else
+			return 0;
+	}
+};
+
+struct MicroSecondTimeProvider
+{
+	typedef timeval TimeType;
+
+	inline TimeType Now()
+	{
+		timeval tv;
+		gettimeofday(&tv, NULL);
+		return tv;
+	}
+
+	inline TimeType Before(TimeType v1, TimeType v2)
+	{
+		timeval tv;
+		timersub(&v1, &v2, &tv);
+		return tv;
+	}
+
+	inline TimeType After(TimeType v1, TimeType v2)
+	{
+		timeval tv;
+		timeradd(&v1, &v2, &tv);
+		return tv;
+	}
+
+	inline int Compare(TimeType v1, TimeType v2)
+	{
+		if(v1.tv_sec > v2.tv_sec)
+			return 1;
+		else if(v1.tv_sec < v2.tv_sec)
+			return -1;
+		else
+			if(v1.tv_usec > v2.tv_usec)
+				return 1;
+			else if(v1.tv_usec < v2.tv_usec)
+				return -1;
+			else
+				return 0;
+	}
+};
+
 template<typename KeyT>
 struct HashNodeHead
 {
 	typename KeyTranslate<KeyT>::HeadType KeyValue;
 } __attribute__((packed));
 
-template<typename KeyT>
+template<typename KeyT, typename TimeType>
 struct TimerHashNodeHead
 {
 	typename KeyTranslate<KeyT>::HeadType KeyValue;
-	time_t Timestamp;
+	TimeType Timestamp;
 } __attribute__((packed));
 
-template<typename KeyT, typename ValueT, template<typename> class HeadT>
+template<typename KeyT, typename ValueT, typename HeadT>
 struct HashNode
 {
-	HeadT<KeyT> Key;
+	HeadT Key;
 	ValueT Value;
 } __attribute__((packed));
 
@@ -49,13 +121,13 @@ struct HashTableIterator
 };
 
 template<typename KeyT, typename ValueT, 
-			template<typename> class HeadT, template<typename, typename> class HashTableT>
+			typename HeadT, typename HashTableT>
 class AbstractHashTable
 {
 public:
-	static HashTableT<KeyT, ValueT> CreateHashTable(size_t seed, size_t count)
+	static HashTableT CreateHashTable(size_t seed, size_t count)
 	{
-		HashTableT<KeyT, ValueT> ht;
+		HashTableT ht;
 		ht.m_NeedDelete = true;
 
 		ht.m_PrimeBuffer = (size_t*)malloc(sizeof(size_t)*count);
@@ -70,9 +142,9 @@ public:
 		return ht;
 	}
 
-	static HashTableT<KeyT, ValueT> LoadHashTable(char* buffer, size_t size, Seed seed)
+	static HashTableT LoadHashTable(char* buffer, size_t size, Seed seed)
 	{
-		HashTableT<KeyT, ValueT> ht;
+		HashTableT ht;
 
 		ht.m_PrimeBuffer = seed.GetSeedBuffer();
 		ht.m_PrimeCount = seed.GetSize();
@@ -83,9 +155,9 @@ public:
 	}
 
 	template<typename StorageT>
-	static HashTableT<KeyT, ValueT> LoadHashTable(StorageT storage, Seed seed)
+	static HashTableT LoadHashTable(StorageT storage, Seed seed)
 	{
-		HashTableT<KeyT, ValueT> ht;
+		HashTableT ht;
 
 		ht.m_PrimeBuffer = seed.GetSeedBuffer();
 		ht.m_PrimeCount = seed.GetSize();
@@ -163,7 +235,7 @@ protected:
 
 template<typename KeyT, typename ValueT>
 class HashTable :
-	public AbstractHashTable<KeyT, ValueT, HashNodeHead, HashTable>
+	public AbstractHashTable<KeyT, ValueT, HashNodeHead<KeyT>, HashTable<KeyT, ValueT> >
 {
 public:
 	ValueT* Next(HashTableIterator* pstIterator)
@@ -176,7 +248,7 @@ public:
 			for(; pstIterator->Seed<this->m_PrimeBuffer[pstIterator->BufferIndex]; ++pstIterator->Seed)
 			{
 				size_t pos = pstIterator->Seed + pstIterator->Offset;
-				HashNode<KeyT, ValueT, HashNodeHead>* pNode = &this->m_NodeBuffer[pos];
+				HashNode<KeyT, ValueT, HashNodeHead<KeyT> >* pNode = &this->m_NodeBuffer[pos];
 				if(pNode->Key.KeyValue != 0)
 				{
 					++pstIterator->Seed;
@@ -191,14 +263,14 @@ public:
 
 	ValueT* Hash(KeyT key, bool bNew = false)
 	{
-		HashNode<KeyT, ValueT, HashNodeHead>* pEmptyNode = NULL;
+		HashNode<KeyT, ValueT, HashNodeHead<KeyT> >* pEmptyNode = NULL;
 
 		typename KeyTranslate<KeyT>::HeadType headKey = KeyTranslate<KeyT>::Translate(key);
 		size_t offset = 0;
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, HashNodeHead>* pNode = &this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, HashNodeHead<KeyT> >* pNode = &this->m_NodeBuffer[pos];
 
 			if(pEmptyNode == NULL && pNode->Key.KeyValue == 0)
 				pEmptyNode = pNode;
@@ -220,9 +292,10 @@ public:
 
 };
 
-template<typename KeyT, typename ValueT>
+template<typename KeyT, typename ValueT, typename TimeProviderT = SecondTimeProvider>
 class TimerHashTable :
-	public AbstractHashTable<KeyT, ValueT, TimerHashNodeHead, TimerHashTable>
+	public AbstractHashTable<KeyT, ValueT, 
+				TimerHashNodeHead<KeyT, typename TimeProviderT::TimeType>, TimerHashTable<KeyT, ValueT, TimeProviderT> >
 {
 public:
 	TimerHashTable() :
@@ -235,14 +308,14 @@ public:
 		if(!pstIterator)
 			return NULL;
 
-		time_t now = time(NULL);
+		typename TimeProviderT::TimeType now = m_TimeProvider.Now();
 		for(; pstIterator->BufferIndex<this->m_PrimeCount; ++pstIterator->BufferIndex)
 		{
 			for(; pstIterator->Seed<this->m_PrimeBuffer[pstIterator->BufferIndex]; ++pstIterator->Seed)
 			{
 				size_t pos = pstIterator->Seed + pstIterator->Offset;
-				HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
-				if(pNode->Key.KeyValue != 0 && pNode->Key.Timestamp > now)
+				HashNode<KeyT, ValueT, TimerHashNodeHead<KeyT, typename TimeProviderT::TimeType> >* pNode = &this->m_NodeBuffer[pos];
+				if(pNode->Key.KeyValue != 0 && m_TimeProvider.Compare(pNode->Key.Timestamp, now) > 0)
 				{
 					++pstIterator->Seed;
 					return &pNode->Value;
@@ -256,22 +329,23 @@ public:
 
 	ValueT* Hash(KeyT key, bool bNew = false)
 	{
-		HashNode<KeyT, ValueT, TimerHashNodeHead>* pEmptyNode = NULL;
-		time_t now = time(NULL);
+		HashNode<KeyT, ValueT, TimerHashNodeHead<KeyT, typename TimeProviderT::TimeType> >* pEmptyNode = NULL;
+		TimeProviderT provider;
+		typename TimeProviderT::TimeType now = provider.Now();
 
 		typename KeyTranslate<KeyT>::HeadType headKey = KeyTranslate<KeyT>::Translate(key);
 		size_t offset = 0;
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, TimerHashNodeHead<KeyT, typename TimeProviderT::TimeType> >* pNode = &this->m_NodeBuffer[pos];
 
-			if(pEmptyNode == NULL && (pNode->Key.KeyValue == 0 || pNode->Key.Timestamp <= now))
+			if(pEmptyNode == NULL && (pNode->Key.KeyValue == 0 || m_TimeProvider.Compare(pNode->Key.Timestamp, now) <= 0))
 				pEmptyNode = pNode;
 
 			if(pNode->Key.KeyValue == headKey)
 			{
-				if(pNode->Key.Timestamp <= now)
+				if(m_TimeProvider.Compare(pNode->Key.Timestamp, now) <= 0)
 					break;
 				else
 					return &pNode->Value;
@@ -283,29 +357,29 @@ public:
 		if(bNew && pEmptyNode != NULL)
 		{
 			pEmptyNode->Key.KeyValue = headKey;
-			pEmptyNode->Key.Timestamp = m_DefaultTimeout==0?TIMERHASHTABLE_TIMEOUT:(now + m_DefaultTimeout);
+			pEmptyNode->Key.Timestamp = m_TimeProvider.After(now, m_DefaultTimeout);
 			memset(&pEmptyNode->Value, 0, sizeof(ValueT));
 			return &pEmptyNode->Value;
 		}
 		return NULL;
 	}
 
-	time_t Expire(KeyT key, time_t timeout)
+	typename TimeProviderT::TimeType Expire(KeyT key, typename TimeProviderT::TimeType timeout)
 	{
-		time_t now = time(NULL);
+		typename TimeProviderT::TimeType now = m_TimeProvider.Now();
 
 		typename KeyTranslate<KeyT>::HeadType headKey = KeyTranslate<KeyT>::Translate(key);
 		size_t offset = 0;
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, TimerHashNodeHead<KeyT, typename TimeProviderT::TimeType> >* pNode = &this->m_NodeBuffer[pos];
 
 			if(pNode->Key.KeyValue == headKey)
 			{
-				if(pNode->Key.Timestamp > now)
+				if(m_TimeProvider.Compare(pNode->Key.Timestamp, now) > 0)
 				{
-					time_t last = pNode->Key.Timestamp;
+					typename TimeProviderT::TimeType last = pNode->Key.Timestamp;
 					pNode->Key.Timestamp = timeout;
 					return last;
 				}
@@ -317,21 +391,21 @@ public:
 		return 0;
 	}
 
-	time_t TTL(KeyT key)
+	typename TimeProviderT::TimeType TTL(KeyT key)
 	{
-		time_t now = time(NULL);
+		typename TimeProviderT::TimeType now = m_TimeProvider.Now();
 
 		typename KeyTranslate<KeyT>::HeadType headKey = KeyTranslate<KeyT>::Translate(key);
 		size_t offset = 0;
 		for(size_t i=0; i<this->m_PrimeCount; ++i)
 		{
 			size_t pos = (headKey % this->m_PrimeBuffer[i] + offset);
-			HashNode<KeyT, ValueT, TimerHashNodeHead>* pNode = &this->m_NodeBuffer[pos];
+			HashNode<KeyT, ValueT, TimerHashNodeHead<KeyT, typename TimeProviderT::TimeType> >* pNode = &this->m_NodeBuffer[pos];
 
 			if(pNode->Key.KeyValue == headKey)
 			{
-				if(pNode->Key.Timestamp > now)
-					return pNode->Key.Timestamp - now;
+				if(m_TimeProvider.Compare(pNode->Key.Timestamp, now) > 0)
+					return m_TimeProvider.Before(pNode->Key.Timestamp, now);
 				else
 					return 0;
 			}
@@ -340,20 +414,21 @@ public:
 		return 0;
 	}
 
-	inline time_t GetDefaultTimeout()
+	inline typename TimeProviderT::TimeType GetDefaultTimeout()
 	{
 		return m_DefaultTimeout;
 	}
 
-	inline time_t SetDefaultTimeout(time_t timeout)
+	inline typename TimeProviderT::TimeType SetDefaultTimeout(typename TimeProviderT::TimeType timeout)
 	{
-		time_t last = m_DefaultTimeout;
+		typename TimeProviderT::TimeType last = m_DefaultTimeout;
 		m_DefaultTimeout = timeout;
 		return last;
 	}
 
 protected:
-	time_t	m_DefaultTimeout;
+	TimeProviderT m_TimeProvider;
+	typename TimeProviderT::TimeType m_DefaultTimeout;
 };
 
 #endif // define __HASHTABLE_HPP__
