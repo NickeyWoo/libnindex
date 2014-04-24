@@ -16,23 +16,144 @@
 #define RBTREE_NODECOLOR_RED		0
 #define RBTREE_NODECOLOR_BLACK		1
 
+template<typename T>
+struct CountAddition
+{
+	typedef T AdditionType;
+};
+
+template<typename T>
+struct SumAddition
+{
+	typedef T AdditionType;
+};
+
 template<typename IndexT>
 struct RBTreeNodeHead
 {
 	uint8_t Color;
-	uint32_t LeftCount;
 	IndexT ParentIndex;
 	IndexT LeftIndex;
 	IndexT RightIndex;
 } __attribute__((packed));
 
+template<typename KeyT, typename ValueT, typename AdditionListT, typename IndexT>
+struct RBTreeNode;
 template<typename KeyT, typename ValueT, typename IndexT>
-struct RBTreeNode
+struct RBTreeNode<KeyT, ValueT, NullType, IndexT>
 {
 	RBTreeNodeHead<IndexT> Head;
 	KeyT Key;
 	ValueT Value;
 } __attribute__((packed));
+template<typename KeyT, typename ValueT, typename CountAdditionType, typename AdditionListT, typename IndexT>
+struct RBTreeNode<KeyT, ValueT, TypeList<CountAddition<CountAdditionType>, AdditionListT>, IndexT> :
+	public RBTreeNode<KeyT, ValueT, AdditionListT, IndexT>
+{
+	CountAdditionType LeftCount;
+} __attribute__((packed));
+template<typename KeyT, typename ValueT, typename SumAdditionType, typename AdditionListT, typename IndexT>
+struct RBTreeNode<KeyT, ValueT, TypeList<SumAddition<SumAdditionType>, AdditionListT>, IndexT> :
+	public RBTreeNode<KeyT, ValueT, AdditionListT, IndexT>
+{
+	SumAdditionType LeftSum;
+	SumAdditionType SumAdditionValue;
+} __attribute__((packed));
+
+template<typename RBTreeNodeT, typename AdditionListT>
+struct TreeNodeAddition;
+template<typename RBTreeNodeT>
+struct TreeNodeAddition<RBTreeNodeT, NullType>
+{
+	inline static void InsertFixup(RBTreeNodeT* pNode, RBTreeNodeT* pInsertNode)
+	{
+	}
+
+	inline static void ClearFixup(RBTreeNodeT* pNode, RBTreeNodeT* pClearNode)
+	{
+	}
+
+	inline static void RotateNodeInitialize(RBTreeNodeT* pNode)
+	{
+	}
+
+	inline static void RotateFixup(RBTreeNodeT* pNode, RBTreeNodeT* pRightNode)
+	{
+	}
+
+	inline static std::string Serialization(RBTreeNodeT* pNode)
+	{
+		return std::string();
+	}
+};
+template<typename RBTreeNodeT, typename CountAdditionType, typename AdditionListT>
+struct TreeNodeAddition<RBTreeNodeT, TypeList<CountAddition<CountAdditionType>, AdditionListT> >
+{
+	inline static void InsertFixup(RBTreeNodeT* pNode, RBTreeNodeT* pInsertNode)
+	{
+		++pNode->LeftCount;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::InsertFixup(pNode, pInsertNode);
+	}
+
+	inline static void ClearFixup(RBTreeNodeT* pNode, RBTreeNodeT* pClearNode)
+	{
+		--pNode->LeftCount;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::ClearFixup(pNode, pClearNode);
+	}
+
+	inline static void RotateNodeInitialize(RBTreeNodeT* pFixNode)
+	{
+		pFixNode->LeftCount = 0;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::RotateNodeInitialize(pFixNode);
+	}
+
+	inline static void RotateFixup(RBTreeNodeT* pFixNode, RBTreeNodeT* pLeftChildRightNode)
+	{
+		pFixNode->LeftCount += pLeftChildRightNode->LeftCount + 1;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::RotateFixup(pFixNode, pLeftChildRightNode);
+	}
+
+	inline static std::string Serialization(RBTreeNodeT* pNode)
+	{
+		std::string str = TreeNodeAddition<RBTreeNodeT, AdditionListT>::Serialization(pNode);
+		str.append((boost::format("[lc:%s]") % KeySerialization<CountAdditionType>::Serialization(pNode->LeftCount)).str());
+		return str;
+	}
+};
+template<typename RBTreeNodeT, typename SumAdditionType, typename AdditionListT>
+struct TreeNodeAddition<RBTreeNodeT, TypeList<SumAddition<SumAdditionType>, AdditionListT> >
+{
+	inline static void InsertFixup(RBTreeNodeT* pNode, RBTreeNodeT* pInsertNode)
+	{
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::InsertFixup(pNode, pInsertNode);
+	}
+
+	inline static void ClearFixup(RBTreeNodeT* pNode, RBTreeNodeT* pClearNode)
+	{
+		pNode->LeftSum -= pClearNode->SumAdditionValue;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::ClearFixup(pNode, pClearNode);
+	}
+
+	inline static void RotateNodeInitialize(RBTreeNodeT* pFixNode)
+	{
+		pFixNode->LeftSum = 0;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::RotateNodeInitialize(pFixNode);
+	}
+
+	inline static void RotateFixup(RBTreeNodeT* pFixNode, RBTreeNodeT* pLeftChildRightNode)
+	{
+		pFixNode->LeftSum += pLeftChildRightNode->LeftSum + pLeftChildRightNode->SumAdditionValue;
+		TreeNodeAddition<RBTreeNodeT, AdditionListT>::RotateFixup(pFixNode, pLeftChildRightNode);
+	}
+
+	inline static std::string Serialization(RBTreeNodeT* pNode)
+	{
+		std::string str = TreeNodeAddition<RBTreeNodeT, AdditionListT>::Serialization(pNode);
+		str.append((boost::format("[ls:%s,av:%s]") % KeySerialization<SumAdditionType>::Serialization(pNode->LeftSum)
+													% KeySerialization<SumAdditionType>::Serialization(pNode->SumAdditionValue)).str());
+		return str;
+	}
+};
 
 template<typename IndexT>
 struct RBTreeHead
@@ -57,37 +178,44 @@ struct RBTreeIteratorImpl
 	}
 };
 
-template<typename KeyT, typename ValueT, typename IndexT = uint32_t>
-class RBTree
+template<typename KeyT, typename ValueT, typename AdditionListT, typename IndexT>
+class RBTree;
+
+template<typename KeyT, typename ValueT, typename AdditionListT, typename IndexT, typename RBTreeNodeT>
+class RBTreeImpl;
+template<typename KeyT, typename ValueT, typename IndexT, typename AdditionListT>
+class RBTreeImpl<KeyT, ValueT, NullType, IndexT, RBTreeNode<KeyT, ValueT, AdditionListT, IndexT> >
 {
 public:
 	typedef RBTreeIteratorImpl<IndexT> RBTreeIterator;
+	typedef RBTreeNode<KeyT, ValueT, AdditionListT, IndexT> RBTreeNodeType;
+	typedef RBTree<KeyT, ValueT, AdditionListT, IndexT> RBTreeType;
 
-	static RBTree<KeyT, ValueT, IndexT> CreateRBTree(IndexT size)
+	static RBTreeType CreateRBTree(IndexT size)
 	{
-		RBTree<KeyT, ValueT, IndexT> rbt;
-		rbt.m_NodeBlockTable = BlockTable<RBTreeNode<KeyT, ValueT, IndexT>, RBTreeHead<IndexT>, IndexT>::CreateBlockTable(size);
+		RBTreeType rbt;
+		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<IndexT>, IndexT>::CreateBlockTable(size);
 		return rbt;
 	}
 
-	static RBTree<KeyT, ValueT, IndexT> LoadRBTree(char* buffer, size_t size)
+	static RBTreeType LoadRBTree(char* buffer, size_t size)
 	{
-		RBTree<KeyT, ValueT, IndexT> rbt;
-		rbt.m_NodeBlockTable = BlockTable<RBTreeNode<KeyT, ValueT, IndexT>, RBTreeHead<IndexT>, IndexT>::LoadBlockTable(buffer, size);
+		RBTreeType rbt;
+		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<IndexT>, IndexT>::LoadBlockTable(buffer, size);
 		return rbt;
 	}
 
 	template<typename StorageT>
-	static RBTree<KeyT, ValueT, IndexT> LoadRBTree(StorageT storage)
+	static RBTreeType LoadRBTree(StorageT storage)
 	{
-		RBTree<KeyT, ValueT, IndexT> rbt;
-		rbt.m_NodeBlockTable = BlockTable<RBTreeNode<KeyT, ValueT, IndexT>, RBTreeHead<IndexT>, IndexT>::LoadBlockTable(storage);
+		RBTreeType rbt;
+		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<IndexT>, IndexT>::LoadBlockTable(storage);
 		return rbt;
 	}
 
 	static inline size_t GetBufferSize(IndexT size)
 	{
-		return BlockTable<RBTreeNode<KeyT, ValueT, IndexT>, RBTreeHead<IndexT>, IndexT>::GetBufferSize(size);
+		return BlockTable<RBTreeNodeType, RBTreeHead<IndexT>, IndexT>::GetBufferSize(size);
 	}
 
 	void Delete()
@@ -98,7 +226,7 @@ public:
 	void Clear(KeyT key)
 	{
 		RBTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		RBTreeNode<KeyT, ValueT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
+		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 		while(node != NULL)
 		{
 			int result = KeyCompare<KeyT>::Compare(node->Key, key);
@@ -117,7 +245,7 @@ public:
 	ValueT* Minimum(KeyT* pKey = NULL)
 	{
 		RBTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		RBTreeNode<KeyT, ValueT, IndexT>* node = TreeNodeMinimum(m_NodeBlockTable[pHead->RootIndex]);
+		RBTreeNodeType* node = TreeNodeMinimum(m_NodeBlockTable[pHead->RootIndex]);
 		if(node)
 		{
 			if(pKey)
@@ -130,7 +258,7 @@ public:
 	ValueT* Maximum(KeyT* pKey = NULL)
 	{
 		RBTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		RBTreeNode<KeyT, ValueT, IndexT>* node = TreeNodeMaximum(m_NodeBlockTable[pHead->RootIndex]);
+		RBTreeNodeType* node = TreeNodeMaximum(m_NodeBlockTable[pHead->RootIndex]);
 		if(node)
 		{
 			if(pKey)
@@ -140,48 +268,12 @@ public:
 		return NULL;
 	}
 
-	uint32_t Count(RBTreeIterator iter)
-	{
-		uint32_t count = 0;
-
-		IndexT nodeIndex = iter.Index;
-		RBTreeNode<KeyT, ValueT, IndexT>* node = m_NodeBlockTable[nodeIndex];
-		while(node != NULL)
-		{
-			count += node->Head.LeftCount + 1;
-
-			RBTreeNode<KeyT, ValueT, IndexT>* parentNode = NULL;
-			while((parentNode = m_NodeBlockTable[node->Head.ParentIndex]) && parentNode->Head.LeftIndex == nodeIndex)
-			{
-				nodeIndex = node->Head.ParentIndex;
-				node = parentNode;
-			}
-
-			if(parentNode == NULL)
-				break;
-
-			nodeIndex = node->Head.ParentIndex;
-			node = parentNode;
-		}
-		return count;
-	}
-
-	uint32_t Count(RBTreeIterator iterBegin, RBTreeIterator iterEnd)
-	{
-		uint32_t c1 = Count(iterBegin);
-		uint32_t c2 = Count(iterEnd);
-		if(c1 > c2)
-			return 0;
-		else
-			return c2 - c1;
-	}
-
 	RBTreeIterator Iterator()
 	{
 		RBTreeIterator iter;
 
 		RBTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		RBTreeNode<KeyT, ValueT, IndexT>* node = TreeNodeMinimum(m_NodeBlockTable[pHead->RootIndex]);
+		RBTreeNodeType* node = TreeNodeMinimum(m_NodeBlockTable[pHead->RootIndex]);
 		if(node)
 			iter.Index = m_NodeBlockTable.GetBlockID(node);
 		else
@@ -196,7 +288,7 @@ public:
 		RBTreeIterator iter;
 		iter.Index = pHead->RootIndex;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
+		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 		while(node != NULL)
 		{
 			iter.Index = m_NodeBlockTable.GetBlockID(node);
@@ -215,7 +307,7 @@ public:
 					node = m_NodeBlockTable[node->Head.RightIndex];
 				else
 				{
-					RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = NULL;
+					RBTreeNodeType* pParentNode = NULL;
 					while((pParentNode = m_NodeBlockTable[node->Head.ParentIndex]) && pParentNode->Head.RightIndex == iter.Index)
 					{
 						iter.Index = node->Head.ParentIndex;
@@ -231,15 +323,15 @@ public:
 
 	ValueT* Next(RBTreeIterator* pIter, KeyT* pKey = NULL)
 	{
-		RBTreeNode<KeyT, ValueT, IndexT>* pNode = m_NodeBlockTable[pIter->Index];
+		RBTreeNodeType* pNode = m_NodeBlockTable[pIter->Index];
 		if(pNode)
 		{
-			RBTreeNode<KeyT, ValueT, IndexT>* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
+			RBTreeNodeType* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
 			if(pRightNode == NULL)
 			{
 				IndexT currentNodeIndex = pIter->Index;
-				RBTreeNode<KeyT, ValueT, IndexT>* pCurrentNode = pNode;
-				RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = NULL;
+				RBTreeNodeType* pCurrentNode = pNode;
+				RBTreeNodeType* pParentNode = NULL;
 				while((pParentNode = m_NodeBlockTable[pCurrentNode->Head.ParentIndex]) && pParentNode->Head.RightIndex == currentNodeIndex)
 				{
 					currentNodeIndex = pCurrentNode->Head.ParentIndex;
@@ -249,7 +341,7 @@ public:
 			}
 			else
 			{
-				RBTreeNode<KeyT, ValueT, IndexT>* pMiniNode = TreeNodeMinimum(pRightNode);
+				RBTreeNodeType* pMiniNode = TreeNodeMinimum(pRightNode);
 				pIter->Index = m_NodeBlockTable.GetBlockID(pMiniNode);
 			}
 	
@@ -268,7 +360,7 @@ public:
 		IndexT ParentIdx = pHead->RootIndex;
 
 		IndexT* pEmptyIdx = &pHead->RootIndex;
-		RBTreeNode<KeyT, ValueT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
+		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 
 		while(node != NULL)
 		{
@@ -302,7 +394,7 @@ public:
 			node->Head.ParentIndex = ParentIdx;
 			memcpy(&node->Key, &key, sizeof(KeyT));
 
-			InsertLeftCountFixup(*pEmptyIdx, node);
+			InsertAdditionFixup(*pEmptyIdx, node);
 			InsertFixup(node, pHead);
 			return &node->Value;
 		}
@@ -320,36 +412,32 @@ public:
 		flags.push_back(false);
 
 		RBTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		RBTreeNode<KeyT, ValueT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
+		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 		PrintNode(node, 0, false, flags);
 	}
 
-	RBTree()
-	{
-	}
-	
 protected:
-	inline RBTreeNode<KeyT, ValueT, IndexT>* TreeNodeMaximum(RBTreeNode<KeyT, ValueT, IndexT>* pNode)
+	inline RBTreeNodeType* TreeNodeMaximum(RBTreeNodeType* pNode)
 	{
 		while(pNode && m_NodeBlockTable[pNode->Head.RightIndex])
 			pNode = m_NodeBlockTable[pNode->Head.RightIndex];
 		return pNode;
 	}
 
-	inline RBTreeNode<KeyT, ValueT, IndexT>* TreeNodeMinimum(RBTreeNode<KeyT, ValueT, IndexT>* pNode)
+	inline RBTreeNodeType* TreeNodeMinimum(RBTreeNodeType* pNode)
 	{
 		while(pNode && m_NodeBlockTable[pNode->Head.LeftIndex])
 			pNode = m_NodeBlockTable[pNode->Head.LeftIndex];
 		return pNode;
 	}
 
-	void TreeNodeTransplantRight(RBTreeNode<KeyT, ValueT, IndexT>* pNode, IndexT nodeIndex, RBTreeHead<IndexT>* pHead)
+	void TreeNodeTransplantRight(RBTreeNodeType* pNode, IndexT nodeIndex, RBTreeHead<IndexT>* pHead)
 	{
 		if(!pNode || m_NodeBlockTable[pNode->Head.LeftIndex] || !pHead)
 			return;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
-		RBTreeNode<KeyT, ValueT, IndexT>* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
+		RBTreeNodeType* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
+		RBTreeNodeType* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
 
 		if(pRightNode)
 			pRightNode->Head.ParentIndex = pNode->Head.ParentIndex;
@@ -365,13 +453,13 @@ protected:
 			pHead->RootIndex = pNode->Head.RightIndex;
 	}
 
-	void TreeNodeTransplantLeft(RBTreeNode<KeyT, ValueT, IndexT>* pNode, IndexT nodeIndex, RBTreeHead<IndexT>* pHead)
+	void TreeNodeTransplantLeft(RBTreeNodeType* pNode, IndexT nodeIndex, RBTreeHead<IndexT>* pHead)
 	{
 		if(!pNode || m_NodeBlockTable[pNode->Head.RightIndex] || !pHead)
 			return;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
-		RBTreeNode<KeyT, ValueT, IndexT>* pLeftNode = m_NodeBlockTable[pNode->Head.LeftIndex];
+		RBTreeNodeType* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
+		RBTreeNodeType* pLeftNode = m_NodeBlockTable[pNode->Head.LeftIndex];
 
 		if(pLeftNode)
 			pLeftNode->Head.ParentIndex = pNode->Head.ParentIndex;
@@ -387,28 +475,15 @@ protected:
 			pHead->RootIndex = pNode->Head.LeftIndex;
 	}
 
-	void ClearLeftCountFixup(IndexT nodeIndex, RBTreeNode<KeyT, ValueT, IndexT>* pNode)
-	{
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = NULL;
-		while(pNode && (pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex]))
-		{
-			if(pParentNode->Head.LeftIndex == nodeIndex)
-				--pParentNode->Head.LeftCount;
-
-			nodeIndex = pNode->Head.ParentIndex;
-			pNode = pParentNode;
-		}
-	}
-
-	void ClearOneChildNode(RBTreeNode<KeyT, ValueT, IndexT>* pNode, RBTreeHead<IndexT>* pHead)
+	void ClearOneChildNode(RBTreeNodeType* pNode, RBTreeHead<IndexT>* pHead)
 	{
 		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
-		ClearLeftCountFixup(nodeIndex, pNode);
+		ClearAdditionFixup(nodeIndex, pNode);
 
 		bool needFixup = (pNode->Head.Color == RBTREE_NODECOLOR_BLACK);
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pFixNode = NULL;
-		RBTreeNode<KeyT, ValueT, IndexT>* pFixParentNode = NULL;
+		RBTreeNodeType* pFixNode = NULL;
+		RBTreeNodeType* pFixParentNode = NULL;
 
 		if(m_NodeBlockTable[pNode->Head.LeftIndex] == NULL)
 		{
@@ -429,7 +504,7 @@ protected:
 			ClearFixup(pFixNode, pFixParentNode, pHead);
 	}
 
-	void ClearNode(RBTreeNode<KeyT, ValueT, IndexT>* pNode, RBTreeHead<IndexT>* pHead)
+	void ClearNode(RBTreeNodeType* pNode, RBTreeHead<IndexT>* pHead)
 	{
 		if(!pNode)
 			return;
@@ -441,7 +516,7 @@ protected:
 		}
 		else
 		{
-			RBTreeNode<KeyT, ValueT, IndexT>* pMiniNode = TreeNodeMinimum(m_NodeBlockTable[pNode->Head.RightIndex]);
+			RBTreeNodeType* pMiniNode = TreeNodeMinimum(m_NodeBlockTable[pNode->Head.RightIndex]);
 
 			// clone Key and Data, then Clear MiniNode.
 			memcpy(&pNode->Key, &pMiniNode->Key, sizeof(KeyT));
@@ -451,14 +526,14 @@ protected:
 		}
 	}
 
-	void ClearFixup(RBTreeNode<KeyT, ValueT, IndexT>* pNode, RBTreeNode<KeyT, ValueT, IndexT>* pParentNode, RBTreeHead<IndexT>* pHead)
+	void ClearFixup(RBTreeNodeType* pNode, RBTreeNodeType* pParentNode, RBTreeHead<IndexT>* pHead)
 	{
 		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 		while((!pNode || pNode->Head.Color == RBTREE_NODECOLOR_BLACK) && nodeIndex != pHead->RootIndex)
 		{
 			if(pParentNode->Head.LeftIndex == nodeIndex)
 			{
-				RBTreeNode<KeyT, ValueT, IndexT>* pBrotherNode = m_NodeBlockTable[pParentNode->Head.RightIndex];
+				RBTreeNodeType* pBrotherNode = m_NodeBlockTable[pParentNode->Head.RightIndex];
 				if(pBrotherNode->Head.Color == RBTREE_NODECOLOR_RED)
 				{
 					pBrotherNode->Head.Color = RBTREE_NODECOLOR_BLACK;
@@ -468,8 +543,8 @@ protected:
 					pBrotherNode = m_NodeBlockTable[pParentNode->Head.RightIndex];
 				}
 
-				RBTreeNode<KeyT, ValueT, IndexT>* pBrotherLeftNode = m_NodeBlockTable[pBrotherNode->Head.LeftIndex];
-				RBTreeNode<KeyT, ValueT, IndexT>* pBrotherRightNode = m_NodeBlockTable[pBrotherNode->Head.RightIndex];
+				RBTreeNodeType* pBrotherLeftNode = m_NodeBlockTable[pBrotherNode->Head.LeftIndex];
+				RBTreeNodeType* pBrotherRightNode = m_NodeBlockTable[pBrotherNode->Head.RightIndex];
 				if((!pBrotherLeftNode || pBrotherLeftNode->Head.Color == RBTREE_NODECOLOR_BLACK) &&
 					(!pBrotherRightNode || pBrotherRightNode->Head.Color == RBTREE_NODECOLOR_BLACK))
 				{
@@ -501,7 +576,7 @@ protected:
 			}
 			else
 			{
-				RBTreeNode<KeyT, ValueT, IndexT>* pBrotherNode = m_NodeBlockTable[pParentNode->Head.LeftIndex];
+				RBTreeNodeType* pBrotherNode = m_NodeBlockTable[pParentNode->Head.LeftIndex];
 				if(pBrotherNode->Head.Color == RBTREE_NODECOLOR_RED)
 				{
 					pBrotherNode->Head.Color = RBTREE_NODECOLOR_BLACK;
@@ -511,8 +586,8 @@ protected:
 					pBrotherNode = m_NodeBlockTable[pParentNode->Head.LeftIndex];
 				}
 
-				RBTreeNode<KeyT, ValueT, IndexT>* pBrotherLeftNode = m_NodeBlockTable[pBrotherNode->Head.LeftIndex];
-				RBTreeNode<KeyT, ValueT, IndexT>* pBrotherRightNode = m_NodeBlockTable[pBrotherNode->Head.RightIndex];
+				RBTreeNodeType* pBrotherLeftNode = m_NodeBlockTable[pBrotherNode->Head.LeftIndex];
+				RBTreeNodeType* pBrotherRightNode = m_NodeBlockTable[pBrotherNode->Head.RightIndex];
 				if((!pBrotherLeftNode || pBrotherLeftNode->Head.Color == RBTREE_NODECOLOR_BLACK) &&
 					(!pBrotherRightNode || pBrotherRightNode->Head.Color == RBTREE_NODECOLOR_BLACK))
 				{
@@ -548,22 +623,9 @@ protected:
 			pNode->Head.Color = RBTREE_NODECOLOR_BLACK;
 	}
 
-	void InsertLeftCountFixup(IndexT nodeIndex, RBTreeNode<KeyT, ValueT, IndexT>* pNode)
+	void InsertFixup(RBTreeNodeType* pNode, RBTreeHead<IndexT>* pHead)
 	{
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = NULL;
-		while(pNode && (pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex]))
-		{
-			if(pParentNode->Head.LeftIndex == nodeIndex)
-				++pParentNode->Head.LeftCount;
-
-			nodeIndex = pNode->Head.ParentIndex;
-			pNode = pParentNode;
-		}
-	}
-
-	void InsertFixup(RBTreeNode<KeyT, ValueT, IndexT>* pNode, RBTreeHead<IndexT>* pHead)
-	{
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = NULL;
+		RBTreeNodeType* pParentNode = NULL;
 		while(pNode && 
 			  pNode->Head.Color == RBTREE_NODECOLOR_RED &&
 			  (pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex]) &&
@@ -571,10 +633,10 @@ protected:
 		{
 			IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 
-			RBTreeNode<KeyT, ValueT, IndexT>* pGrandpaNode = m_NodeBlockTable[pParentNode->Head.ParentIndex];
+			RBTreeNodeType* pGrandpaNode = m_NodeBlockTable[pParentNode->Head.ParentIndex];
 			if(pGrandpaNode->Head.LeftIndex == pNode->Head.ParentIndex)
 			{
-				RBTreeNode<KeyT, ValueT, IndexT>* pUncleNode = m_NodeBlockTable[pGrandpaNode->Head.RightIndex];
+				RBTreeNodeType* pUncleNode = m_NodeBlockTable[pGrandpaNode->Head.RightIndex];
 				if(pUncleNode && pUncleNode->Head.Color == RBTREE_NODECOLOR_RED)
 				{
 					pParentNode->Head.Color = RBTREE_NODECOLOR_BLACK;
@@ -597,7 +659,7 @@ protected:
 			}
 			else
 			{
-				RBTreeNode<KeyT, ValueT, IndexT>* pUncleNode = m_NodeBlockTable[pGrandpaNode->Head.LeftIndex];
+				RBTreeNodeType* pUncleNode = m_NodeBlockTable[pGrandpaNode->Head.LeftIndex];
 				if(pUncleNode && pUncleNode->Head.Color == RBTREE_NODECOLOR_RED)
 				{
 					pParentNode->Head.Color = RBTREE_NODECOLOR_BLACK;
@@ -622,35 +684,19 @@ protected:
 		m_NodeBlockTable[pHead->RootIndex]->Head.Color = RBTREE_NODECOLOR_BLACK;
 	}
 
-	void RotateLeftCountFixup(RBTreeNode<KeyT, ValueT, IndexT>* pNode)
-	{
-		if(!pNode)
-			return;
-
-		uint32_t count = 0;
-		RBTreeNode<KeyT, ValueT, IndexT>* pTempNode = m_NodeBlockTable[pNode->Head.LeftIndex];
-		while(pTempNode)
-		{
-			count += pTempNode->Head.LeftCount + 1;
-			pTempNode = m_NodeBlockTable[pTempNode->Head.RightIndex];
-		}
-
-		pNode->Head.LeftCount = count;
-	}
-
-	void TreeNodeRotateLeft(RBTreeNode<KeyT, ValueT, IndexT>* pNode, RBTreeHead<IndexT>* pHead)
+	void TreeNodeRotateLeft(RBTreeNodeType* pNode, RBTreeHead<IndexT>* pHead)
 	{
 		if(!pNode || !pHead)
 			return;
 
 		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
+		RBTreeNodeType* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
 		if(!pRightNode)
 			return;
 		pRightNode->Head.ParentIndex = pNode->Head.ParentIndex;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
+		RBTreeNodeType* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
 		if(pParentNode == NULL)
 			pHead->RootIndex = pNode->Head.RightIndex;
 		else
@@ -664,28 +710,28 @@ protected:
 		pNode->Head.ParentIndex = pNode->Head.RightIndex;
 		pNode->Head.RightIndex = pRightNode->Head.LeftIndex;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pRightLeftNode = m_NodeBlockTable[pRightNode->Head.LeftIndex];
+		RBTreeNodeType* pRightLeftNode = m_NodeBlockTable[pRightNode->Head.LeftIndex];
 		if(pRightLeftNode)
 			pRightLeftNode->Head.ParentIndex = nodeIndex;
 
 		pRightNode->Head.LeftIndex = nodeIndex;
 
-		RotateLeftCountFixup(pRightNode);
+		RotateAdditionFixup(pRightNode);
 	}
 
-	void TreeNodeRotateRight(RBTreeNode<KeyT, ValueT, IndexT>* pNode, RBTreeHead<IndexT>* pHead)
+	void TreeNodeRotateRight(RBTreeNodeType* pNode, RBTreeHead<IndexT>* pHead)
 	{
 		if(!pNode || !pHead)
 			return;
 
 		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pLeftNode = m_NodeBlockTable[pNode->Head.LeftIndex];
+		RBTreeNodeType* pLeftNode = m_NodeBlockTable[pNode->Head.LeftIndex];
 		if(!pLeftNode)
 			return;
 		pLeftNode->Head.ParentIndex = pNode->Head.ParentIndex;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
+		RBTreeNodeType* pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex];
 		if(pParentNode == NULL)
 			pHead->RootIndex = pNode->Head.LeftIndex;
 		else
@@ -699,16 +745,16 @@ protected:
 		pNode->Head.ParentIndex = pNode->Head.LeftIndex;
 		pNode->Head.LeftIndex = pLeftNode->Head.RightIndex;
 
-		RBTreeNode<KeyT, ValueT, IndexT>* pLeftRightNode = m_NodeBlockTable[pLeftNode->Head.RightIndex];
+		RBTreeNodeType* pLeftRightNode = m_NodeBlockTable[pLeftNode->Head.RightIndex];
 		if(pLeftRightNode)
 			pLeftRightNode->Head.ParentIndex = nodeIndex;
 
 		pLeftNode->Head.RightIndex = nodeIndex;
 
-		RotateLeftCountFixup(pNode);
+		RotateAdditionFixup(pNode);
 	}
 
-	void PrintNode(RBTreeNode<KeyT, ValueT, IndexT>* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
+	void PrintNode(RBTreeNodeType* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
 	{
 		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(node);
 		if(layer > 0)
@@ -725,7 +771,7 @@ protected:
 			else
 				printf("\033[37m|-\033[0m");
 			if(node)
-				printf("\033[%sm%snode: (%s)[%s][lc:%u][p%u:c%u:l%u:r%u]\033[0m\n", node->Head.Color==RBTREE_NODECOLOR_RED?"31":"34", isRight?"r":"l", KeySerialization<KeyT>::Serialization(node->Key).c_str(), node->Head.Color?"black":"red", node->Head.LeftCount, node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+				printf("\033[%sm%snode: (%s)[%s]%s[p%u:c%u:l%u:r%u]\033[0m\n", node->Head.Color==RBTREE_NODECOLOR_RED?"31":"34", isRight?"r":"l", KeySerialization<KeyT>::Serialization(node->Key).c_str(), node->Head.Color?"black":"red", TreeNodeAddition<RBTreeNodeType, AdditionListT>::Serialization(node).c_str(), node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
 			else
 			{
 				printf("\033[37m%snode: (null)\033[0m\n", isRight?"r":"l");
@@ -736,7 +782,7 @@ protected:
 		{
 			printf("\033[37m\\-\033[0m");
 			if(node)
-				printf("\033[%smroot: (%s)[%s][lc:%u][p%u:c%u:l%u:r%u]\033[0m\n", node->Head.Color==RBTREE_NODECOLOR_RED?"31":"34", KeySerialization<KeyT>::Serialization(node->Key).c_str(), node->Head.Color?"black":"red", node->Head.LeftCount, node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+				printf("\033[%smroot: (%s)[%s]%s[p%u:c%u:l%u:r%u]\033[0m\n", node->Head.Color==RBTREE_NODECOLOR_RED?"31":"34", KeySerialization<KeyT>::Serialization(node->Key).c_str(), node->Head.Color?"black":"red", TreeNodeAddition<RBTreeNodeType, AdditionListT>::Serialization(node).c_str(), node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
 			else
 			{
 				printf("\033[37mroot: (null)\033[0m\n");
@@ -750,14 +796,200 @@ protected:
 			flags.at(layer) = true;
 
 		flags.push_back(true);
-		RBTreeNode<KeyT, ValueT, IndexT>* leftNode = m_NodeBlockTable[node->Head.LeftIndex];
+		RBTreeNodeType* leftNode = m_NodeBlockTable[node->Head.LeftIndex];
 		PrintNode(leftNode, layer+1, false, flags);
 
-		RBTreeNode<KeyT, ValueT, IndexT>* rightNode = m_NodeBlockTable[node->Head.RightIndex];
+		RBTreeNodeType* rightNode = m_NodeBlockTable[node->Head.RightIndex];
 		PrintNode(rightNode, layer+1, true, flags);
 	}
 
-	BlockTable<RBTreeNode<KeyT, ValueT, IndexT>, RBTreeHead<IndexT>, IndexT> m_NodeBlockTable;
+	void InsertAdditionFixup(IndexT nodeIndex, RBTreeNodeType* pNode)
+	{
+		RBTreeNodeType* pInsertNode = pNode;
+		RBTreeNodeType* pParentNode = NULL;
+		while(pNode && (pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex]))
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+				TreeNodeAddition<RBTreeNodeType, AdditionListT>::InsertFixup(pParentNode, pInsertNode);
+
+			nodeIndex = pNode->Head.ParentIndex;
+			pNode = pParentNode;
+		}
+	}
+
+	void ClearAdditionFixup(IndexT nodeIndex, RBTreeNodeType* pNode)
+	{
+		RBTreeNodeType* pClearNode = pNode;
+		RBTreeNodeType* pParentNode = NULL;
+		while(pNode && (pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex]))
+		{
+			if(pParentNode->Head.LeftIndex == nodeIndex)
+				TreeNodeAddition<RBTreeNodeType, AdditionListT>::ClearFixup(pParentNode, pClearNode);
+
+			nodeIndex = pNode->Head.ParentIndex;
+			pNode = pParentNode;
+		}
+	}
+
+	void RotateAdditionFixup(RBTreeNodeType* pNode)
+	{
+		if(!pNode)
+			return;
+
+		TreeNodeAddition<RBTreeNodeType, AdditionListT>::RotateNodeInitialize(pNode);
+		RBTreeNodeType* pTempNode = m_NodeBlockTable[pNode->Head.LeftIndex];
+		while(pTempNode)
+		{
+			TreeNodeAddition<RBTreeNodeType, AdditionListT>::RotateFixup(pNode, pTempNode);
+			pTempNode = m_NodeBlockTable[pTempNode->Head.RightIndex];
+		}
+	}
+
+	BlockTable<RBTreeNodeType, RBTreeHead<IndexT>, IndexT> m_NodeBlockTable;
 };
+template<typename KeyT, typename ValueT, typename CountAdditionType, typename AdditionListT, typename IndexT, typename RBTreeNodeT>
+class RBTreeImpl<KeyT, ValueT, TypeList<CountAddition<CountAdditionType>, AdditionListT>, IndexT, RBTreeNodeT> :
+	public RBTreeImpl<KeyT, ValueT, AdditionListT, IndexT, RBTreeNodeT>
+{
+public:
+	CountAdditionType Count(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iter)
+	{
+		CountAdditionType count = 0;
+
+		IndexT nodeIndex = iter.Index;
+		RBTreeNodeT* node = this->m_NodeBlockTable[nodeIndex];
+		while(node != NULL)
+		{
+			count += node->LeftCount + 1;
+
+			RBTreeNodeT* parentNode = NULL;
+			while((parentNode = this->m_NodeBlockTable[node->Head.ParentIndex]) && parentNode->Head.LeftIndex == nodeIndex)
+			{
+				nodeIndex = node->Head.ParentIndex;
+				node = parentNode;
+			}
+
+			if(parentNode == NULL)
+				break;
+
+			nodeIndex = node->Head.ParentIndex;
+			node = parentNode;
+		}
+		return count;
+	}
+
+	CountAdditionType Count(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterBegin, 
+							typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterEnd)
+	{
+		CountAdditionType c1 = Count(iterBegin);
+		CountAdditionType c2 = Count(iterEnd);
+		if(c1 > c2)
+			return 0;
+		else
+			return c2 - c1;
+	}
+
+};
+template<typename KeyT, typename ValueT, typename SumAdditionType, typename AdditionListT, typename IndexT, typename RBTreeNodeT>
+class RBTreeImpl<KeyT, ValueT, TypeList<SumAddition<SumAdditionType>, AdditionListT>, IndexT, RBTreeNodeT> :
+	public RBTreeImpl<KeyT, ValueT, AdditionListT, IndexT, RBTreeNodeT>
+{
+public:
+
+	void GetAddition(KeyT key, SumAdditionType* pValue)
+	{
+		RBTreeHead<IndexT>* pHead = this->m_NodeBlockTable.GetHead();
+		RBTreeNodeT* pNode = this->m_NodeBlockTable[pHead->RootIndex];
+		while(pNode != NULL)
+		{
+			int result = KeyCompare<KeyT>::Compare(pNode->Key, key);
+			if(result == 0)
+				break;
+			else if(result > 0)
+				pNode = this->m_NodeBlockTable[pNode->Head.LeftIndex];
+			else
+				pNode = this->m_NodeBlockTable[pNode->Head.RightIndex];
+		}
+		if(pNode)
+			memcpy(pValue, &pNode->SumAdditionValue, sizeof(SumAdditionType));
+		else
+			memset(pValue, 0, sizeof(SumAdditionType));
+	}
+
+	void SetAddition(KeyT key, SumAdditionType value)
+	{
+		RBTreeHead<IndexT>* pHead = this->m_NodeBlockTable.GetHead();
+		RBTreeNodeT* pNode = this->m_NodeBlockTable[pHead->RootIndex];
+		while(pNode != NULL)
+		{
+			int result = KeyCompare<KeyT>::Compare(pNode->Key, key);
+			if(result == 0)
+				break;
+			else if(result > 0)
+				pNode = this->m_NodeBlockTable[pNode->Head.LeftIndex];
+			else
+				pNode = this->m_NodeBlockTable[pNode->Head.RightIndex];
+		}
+		if(pNode)
+		{
+			pNode->SumAdditionValue = value;
+
+			RBTreeNodeT* pParentNode = NULL;
+			while(pNode && (pParentNode = this->m_NodeBlockTable[pNode->Head.ParentIndex]))
+			{
+				if(pParentNode->Head.LeftIndex == this->m_NodeBlockTable.GetBlockID(pNode))
+					pParentNode->LeftSum += value;
+				pNode = pParentNode;
+			}
+		}
+	}
+
+	SumAdditionType Sum(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iter)
+	{
+		SumAdditionType sum = 0;
+
+		IndexT nodeIndex = iter.Index;
+		RBTreeNodeT* node = this->m_NodeBlockTable[nodeIndex];
+		while(node != NULL)
+		{
+			sum += node->LeftSum + node->SumAdditionValue;
+
+			RBTreeNodeT* parentNode = NULL;
+			while((parentNode = this->m_NodeBlockTable[node->Head.ParentIndex]) && parentNode->Head.LeftIndex == nodeIndex)
+			{
+				nodeIndex = node->Head.ParentIndex;
+				node = parentNode;
+			}
+
+			if(parentNode == NULL)
+				break;
+
+			nodeIndex = node->Head.ParentIndex;
+			node = parentNode;
+		}
+		return sum;
+	}
+
+	SumAdditionType Sum(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterBegin, 
+						typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterEnd)
+	{
+		SumAdditionType s1 = Sum(iterBegin);
+		SumAdditionType s2 = Sum(iterEnd);
+		if(s1 > s2)
+			return 0;
+		else
+			return s2 - s1;
+	}
+
+};
+
+template<typename KeyT, typename ValueT, 
+//	typename AdditionListT = NullType, typename IndexT = uint32_t>
+	typename AdditionListT = TYPELIST_3(CountAddition<uint32_t>, SumAddition<double>, SumAddition<uint32_t>), typename IndexT = uint32_t>
+class RBTree :
+	public RBTreeImpl<KeyT, ValueT, AdditionListT, IndexT, RBTreeNode<KeyT, ValueT, AdditionListT, IndexT> >
+{
+};
+
 
 #endif // define __RBTREE_HPP__

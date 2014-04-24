@@ -102,6 +102,12 @@ int main(int argc, char* argv[])
 
 		uint32_t* pValue = rbtree.Hash(key, true);
 		*pValue = i;
+
+		uint32_t u = 1 * i;
+		rbtree.SetAddition(key, u);
+
+		double d = 0.1 * i;
+		rbtree.SetAddition(key, d);
 	}
 
 	Key maxKey;
