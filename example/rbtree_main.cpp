@@ -79,6 +79,33 @@ struct KeySerialization<Key>
 #define INSERT_NUM 20
 #define DELETE_NUM 10
 
+struct SumA
+{
+	uint32_t A;
+
+	SumA& operator-(SumA v)
+	{
+		A -= v.A;
+		return *this;
+	}
+
+	SumA& operator+(SumA v)
+	{
+		A += v.A;
+		return *this;
+	}
+};
+
+template<>
+struct KeySerialization<SumA>
+{
+	static std::string Serialization(SumA v)
+	{
+		std::string str = (boost::format("%u") % v.A).str();
+		return str;
+	}
+};
+
 int main(int argc, char* argv[])
 {
 /*
@@ -87,8 +114,14 @@ int main(int argc, char* argv[])
 	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)> rbtree = 
 		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::LoadRBTree(storage);
 */
-	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)> rbtree = 
-		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::CreateRBTree(INSERT_NUM);
+///*
+	RBTree<Key, uint32_t, TYPELIST_3(CountAddition<uint8_t>, SumAddition<SumA>, SumAddition<uint32_t>)> rbtree = 
+		RBTree<Key, uint32_t, TYPELIST_3(CountAddition<uint8_t>, SumAddition<SumA>, SumAddition<uint32_t>)>::CreateRBTree(INSERT_NUM);
+//*/
+/*
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint16_t>)> rbtree = 
+		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint16_t>)>::CreateRBTree(INSERT_NUM);
+*/
 
 	Key delKeyBuffer[DELETE_NUM];
 	for(int i=0; i<INSERT_NUM; ++i)
@@ -105,8 +138,12 @@ int main(int argc, char* argv[])
 		uint32_t* pValue = rbtree.Hash(key, true);
 		*pValue = i;
 
-		uint32_t u = 1 * i;
+		uint32_t u = 2 * i;
 		rbtree.SetAddition(key, u);
+
+		SumA s;
+		s.A = 1 * i;
+		rbtree.SetAddition(key, s);
 	}
 
 	Key maxKey;

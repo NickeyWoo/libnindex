@@ -183,7 +183,7 @@ struct TreeNodeAddition<RBTreeNodeT, TypeList<SumAddition<SumAdditionType>, Addi
 
 	inline static void RotateNodeInitialize(RBTreeNodeT* pFixNode)
 	{
-		pFixNode->LeftSum = 0;
+		memset(&pFixNode->LeftSum, 0, sizeof(SumAdditionType));
 		TreeNodeAddition<RBTreeNodeT, AdditionListT>::RotateNodeInitialize(pFixNode);
 	}
 
