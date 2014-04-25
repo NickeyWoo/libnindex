@@ -16,7 +16,7 @@
 #define RBTREE_NODECOLOR_RED		0
 #define RBTREE_NODECOLOR_BLACK		1
 
-template<typename T>
+template<typename T = uint32_t>
 struct CountAddition
 {
 	typedef T AdditionType;
@@ -59,50 +59,6 @@ struct RBTreeNode<KeyT, ValueT, TypeList<SumAddition<SumAdditionType>, AdditionL
 	SumAdditionType LeftSum;
 	SumAdditionType SumAdditionValue;
 } __attribute__((packed));
-
-template<typename NodeT, typename AdditionListT, typename SumAdditionValueT>
-struct SumAdditionValueImpl;
-template<typename KeyT, typename ValueT, typename AdditionsT, typename IndexT, 
-			typename AdditionListT, typename SumAdditionValueT>
-struct SumAdditionValueImpl<RBTreeNode<KeyT, ValueT, AdditionsT, IndexT>, 
-			TypeList<SumAddition<SumAdditionValueT>, AdditionListT>, SumAdditionValueT>
-{
-	static inline SumAdditionValueT GetLeftSum(RBTreeNode<KeyT, ValueT, AdditionsT, IndexT>* pNode)
-	{
-		return ((RBTreeNode<KeyT, ValueT, TypeList<SumAddition<SumAdditionValueT>, AdditionListT>, IndexT>*)pNode)
-			->LeftSum;
-	}
-
-	static inline void SetLeftSum(RBTreeNode<KeyT, ValueT, AdditionsT, IndexT>* pNode, SumAdditionValueT newVal)
-	{
-		((RBTreeNode<KeyT, ValueT, TypeList<SumAddition<SumAdditionValueT>, AdditionListT>, IndexT>*)pNode)
-			->LeftSum = newVal;
-	}
-
-	static inline SumAdditionValueT GetValue(RBTreeNode<KeyT, ValueT, AdditionsT, IndexT>* pNode)
-	{
-		return ((RBTreeNode<KeyT, ValueT, TypeList<SumAddition<SumAdditionValueT>, AdditionListT>, IndexT>*)pNode)
-			->SumAdditionValue;
-	}
-
-	static inline void SetValue(RBTreeNode<KeyT, ValueT, AdditionsT, IndexT>* pNode, SumAdditionValueT newVal)
-	{
-		((RBTreeNode<KeyT, ValueT, TypeList<SumAddition<SumAdditionValueT>, AdditionListT>, IndexT>*)pNode)
-			->SumAdditionValue = newVal;
-	}
-};
-template<typename NodeT, typename OtherT, typename AdditionListT, typename SumAdditionValueT>
-struct SumAdditionValueImpl<NodeT, TypeList<OtherT, AdditionListT>, SumAdditionValueT> :
-	public SumAdditionValueImpl<NodeT, AdditionListT, SumAdditionValueT>
-{
-};
-template<typename NodeT, typename SumAdditionValueT>
-struct SumAdditionValue;
-template<typename KeyT, typename ValueT, typename AdditionListT, typename IndexT, typename SumAdditionValueT>
-struct SumAdditionValue<RBTreeNode<KeyT, ValueT, AdditionListT, IndexT>, SumAdditionValueT> :
-	public SumAdditionValueImpl<RBTreeNode<KeyT, ValueT, AdditionListT, IndexT>, AdditionListT, SumAdditionValueT>
-{
-};
 
 template<typename RBTreeNodeT, typename AdditionListT>
 struct TreeNodeAddition;
@@ -174,10 +130,7 @@ struct TreeNodeAddition<RBTreeNodeT, TypeList<SumAddition<SumAdditionType>, Addi
 
 	inline static void ClearFixup(RBTreeNodeT* pNode, RBTreeNodeT* pClearNode)
 	{
-		SumAdditionType val = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetValue(pClearNode);
-		SumAdditionType leftSum = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetLeftSum(pNode);
-
-		SumAdditionValue<RBTreeNodeT, SumAdditionType>::SetLeftSum(pNode, leftSum - val);
+		pNode->LeftSum = pNode->LeftSum - pClearNode->SumAdditionValue;
 		TreeNodeAddition<RBTreeNodeT, AdditionListT>::ClearFixup(pNode, pClearNode);
 	}
 
@@ -189,22 +142,15 @@ struct TreeNodeAddition<RBTreeNodeT, TypeList<SumAddition<SumAdditionType>, Addi
 
 	inline static void RotateFixup(RBTreeNodeT* pFixNode, RBTreeNodeT* pLeftChildRightNode)
 	{
-		SumAdditionType fixLeftSum = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetLeftSum(pFixNode);
-		SumAdditionType leftSum = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetLeftSum(pLeftChildRightNode);
-		SumAdditionType val = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetValue(pLeftChildRightNode);
-
-		SumAdditionValue<RBTreeNodeT, SumAdditionType>::SetLeftSum(pFixNode, fixLeftSum + leftSum + val);
+		pFixNode->LeftSum = pFixNode->LeftSum + pLeftChildRightNode->LeftSum + pLeftChildRightNode->SumAdditionValue;
 		TreeNodeAddition<RBTreeNodeT, AdditionListT>::RotateFixup(pFixNode, pLeftChildRightNode);
 	}
 
 	inline static std::string Serialization(RBTreeNodeT* pNode)
 	{
-		SumAdditionType val = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetValue(pNode);
-		SumAdditionType leftSum = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetLeftSum(pNode);
-
 		std::string str = TreeNodeAddition<RBTreeNodeT, AdditionListT>::Serialization(pNode);
-		str.append((boost::format("[ls:%s,av:%s]") % KeySerialization<SumAdditionType>::Serialization(leftSum)
-													% KeySerialization<SumAdditionType>::Serialization(val)).str());
+		str.append((boost::format("[ls:%s,av:%s]") % KeySerialization<SumAdditionType>::Serialization(pNode->LeftSum)
+													% KeySerialization<SumAdditionType>::Serialization(pNode->SumAdditionValue)).str());
 		return str;
 	}
 };
@@ -950,7 +896,7 @@ class RBTreeImpl<KeyT, ValueT, TypeList<SumAddition<SumAdditionType>, AdditionLi
 {
 public:
 
-	void GetAddition(KeyT key, SumAdditionType* pValue)
+	SumAdditionType GetAddition(KeyT key)
 	{
 		RBTreeHead<IndexT>* pHead = this->m_NodeBlockTable.GetHead();
 		RBTreeNodeT* pNode = this->m_NodeBlockTable[pHead->RootIndex];
@@ -965,12 +911,9 @@ public:
 				pNode = this->m_NodeBlockTable[pNode->Head.RightIndex];
 		}
 		if(pNode)
-		{
-			SumAdditionType val = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetValue(pNode);
-			memcpy(pValue, &val, sizeof(SumAdditionType));
-		}
+			return pNode->SumAdditionValue;
 		else
-			memset(pValue, 0, sizeof(SumAdditionType));
+			return 0;
 	}
 
 	void SetAddition(KeyT key, SumAdditionType value)
@@ -989,32 +932,27 @@ public:
 		}
 		if(pNode)
 		{
-			SumAdditionValue<RBTreeNodeT, SumAdditionType>::SetValue(pNode, value);
+			pNode->SumAdditionValue = value;
 
 			RBTreeNodeT* pParentNode = NULL;
 			while(pNode && (pParentNode = this->m_NodeBlockTable[pNode->Head.ParentIndex]))
 			{
 				if(pParentNode->Head.LeftIndex == this->m_NodeBlockTable.GetBlockID(pNode))
-				{
-					SumAdditionType leftSum = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetLeftSum(pParentNode);
-					SumAdditionValue<RBTreeNodeT, SumAdditionType>::SetLeftSum(pParentNode, leftSum+value);
-				}
+					pParentNode->LeftSum = pParentNode->LeftSum + value;
 				pNode = pParentNode;
 			}
 		}
 	}
 
-	void Sum(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iter, SumAdditionType* pSum)
+	SumAdditionType Sum(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iter)
 	{
-		*pSum = 0;
+		SumAdditionType sum = 0;
 
 		IndexT nodeIndex = iter.Index;
 		RBTreeNodeT* node = this->m_NodeBlockTable[nodeIndex];
 		while(node != NULL)
 		{
-			SumAdditionType leftSum = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetLeftSum(node);
-			SumAdditionType val = SumAdditionValue<RBTreeNodeT, SumAdditionType>::GetValue(node);
-			*pSum += leftSum + val;
+			sum += node->LeftSum + node->SumAdditionValue;
 
 			RBTreeNodeT* parentNode = NULL;
 			while((parentNode = this->m_NodeBlockTable[node->Head.ParentIndex]) && parentNode->Head.LeftIndex == nodeIndex)
@@ -1029,20 +967,18 @@ public:
 			nodeIndex = node->Head.ParentIndex;
 			node = parentNode;
 		}
+		return sum;
 	}
 
-	void Sum(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterBegin, 
-			typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterEnd,
-			SumAdditionType* pSum)
+	SumAdditionType Sum(typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterBegin, 
+						typename RBTree<KeyT, ValueT, AdditionListT, IndexT>::RBTreeIterator iterEnd)
 	{
-		SumAdditionType s1, s2;
-		Sum(iterBegin, &s1);
-		Sum(iterEnd, &s2);
-
+		SumAdditionType s1 = Sum(iterBegin);
+		SumAdditionType s2 = Sum(iterEnd);
 		if(s1 > s2)
-			*pSum = 0;
+			return 0;
 		else
-			*pSum = s2 - s1;
+			return s2 - s1;
 	}
 
 };
