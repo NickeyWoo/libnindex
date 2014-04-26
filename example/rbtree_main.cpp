@@ -116,8 +116,8 @@ int main(int argc, char* argv[])
 	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)> rbtree = 
 		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::LoadRBTree(storage);
 */
-	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<>, SumAddition<int>)> rbtree = 
-		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<>, SumAddition<int>)>::CreateRBTree(INSERT_NUM);
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<>, SumAddition<float>)> rbtree = 
+		RBTree<Key, uint32_t, TYPELIST_2(CountAddition<>, SumAddition<float>)>::CreateRBTree(INSERT_NUM);
 
 	Key delKeyBuffer[DELETE_NUM];
 	for(int i=0; i<INSERT_NUM; ++i)
@@ -134,13 +134,13 @@ int main(int argc, char* argv[])
 		uint32_t* pValue = rbtree.Hash(key, true);
 		*pValue = i;
 
-		rbtree.SetAddition(key, 1);
+		rbtree.SetAddition(key, 0.2);
 	}
 
 	Key maxKey;
 	rbtree.Maximum(&maxKey);
 
-	printf("\nBefore:[%s](%u)\n", KeySerialization<Key>::Serialization(maxKey).c_str(), rbtree.Count(rbtree.Iterator(maxKey)));
+	printf("\nBefore:[%s](%u)(%.03f)\n", KeySerialization<Key>::Serialization(maxKey).c_str(), rbtree.Count(rbtree.Iterator(maxKey)), rbtree.Sum(rbtree.Iterator(maxKey)));
 	rbtree.DumpTree();
 
 	for(int i=0; i<DELETE_NUM; ++i)
@@ -149,14 +149,14 @@ int main(int argc, char* argv[])
 	}
 
 	rbtree.Maximum(&maxKey);
-	printf("\nAfter:[%s](%u)\n", KeySerialization<Key>::Serialization(maxKey).c_str(), rbtree.Count(rbtree.Iterator(maxKey)));
+	printf("\nAfter:[%s](%u)(%.03f)\n", KeySerialization<Key>::Serialization(maxKey).c_str(), rbtree.Count(rbtree.Iterator(maxKey)), rbtree.Sum(rbtree.Iterator(maxKey)));
 	rbtree.DumpTree();
 
 	printf("\n//////////////////////////////////////////////////////////////////\nAll Data:\n");
 
 	Key key;
 	uint32_t* pValue = NULL;
-	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::RBTreeIterator iter = rbtree.Iterator();
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<>, SumAddition<float>)>::RBTreeIterator iter = rbtree.Iterator();
 	while((pValue = rbtree.Next(&iter, &key)))
 	{
 		printf("Next:%02u Key:(%s)\n", iter.Index, KeySerialization<Key>::Serialization(key).c_str());
@@ -168,9 +168,10 @@ int main(int argc, char* argv[])
 	iter = rbtree.Iterator(vkeyBegin);
 
 	Key vkeyEnd = {2, 0, 0};
-	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<uint32_t>)>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
+	RBTree<Key, uint32_t, TYPELIST_2(CountAddition<uint8_t>, SumAddition<float>)>::RBTreeIterator iterEnd = rbtree.Iterator(vkeyEnd);
 
 	printf("Count:%u\n", rbtree.Count(iter, iterEnd));
+	printf("Sum:%03f\n", rbtree.Sum(iter, iterEnd));
 	while(iter != iterEnd && (pValue = rbtree.Next(&iter, &key)))
 	{
 		printf("Next:%02u End:%02u Key:(%s)\n", iter.Index, iterEnd.Index, KeySerialization<Key>::Serialization(key).c_str());
