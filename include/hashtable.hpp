@@ -125,20 +125,18 @@ template<typename KeyT, typename ValueT,
 class AbstractHashTable
 {
 public:
-	static HashTableT CreateHashTable(size_t seed, size_t count)
+	static HashTableT CreateHashTable(Seed seed)
 	{
 		HashTableT ht;
-		ht.m_NeedDelete = true;
-
-		ht.m_PrimeBuffer = (size_t*)malloc(sizeof(size_t)*count);
-		memset(ht.m_PrimeBuffer, 0, sizeof(size_t)*count);
-		ht.m_PrimeCount = GetPrimes(seed, ht.m_PrimeBuffer, count);
+		ht.m_PrimeBuffer = seed.GetSeedBuffer();
+		ht.m_PrimeCount = seed.GetSize();
 
 		for(size_t i=0; i<ht.m_PrimeCount; ++i)
 			ht.m_NodeBufferSize += ht.m_PrimeBuffer[i];
 		ht.m_NodeBufferSize *= sizeof(HashNode<KeyT, ValueT, HeadT>);
 
 		ht.m_NodeBuffer = (HashNode<KeyT, ValueT, HeadT>*)malloc(ht.m_NodeBufferSize);
+		ht.m_NeedDelete = true;
 		return ht;
 	}
 
@@ -197,7 +195,7 @@ public:
 
 	void Delete()
 	{
-		if(m_NeedDelete && m_PrimeBuffer)
+		if(m_PrimeBuffer)
 		{
 			free(m_PrimeBuffer);
 			m_PrimeBuffer = NULL;

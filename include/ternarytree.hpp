@@ -988,7 +988,15 @@ protected:
 			else
 				printf("\033[37m|-\033[0m");
 			if(node)
-				printf("\033[%sm%snode: (%s)[%s][p%u:c%u:l%u:r%u]\033[0m\n", IsRed(node)?"31":"34", isRight?"r":"l", IsLeaf(node)?"leaf":KeySerialization<KeyT>::Serialization(node->Key).c_str(), IsBlack(node)?"black":"red", node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+				printf("\033[%sm%snode: (%s)[%s][p%u:c%u:l%u:r%u]\033[0m\n",
+							IsRed(node)?"31":"34",
+							isRight?"r":"l",
+							IsLeaf(node)?"leaf":KeySerialization<KeyT>::Serialization(node->Key).c_str(),
+							IsBlack(node)?"black":"red",
+							node->Head.ParentIndex,
+							nodeIndex,
+							node->Head.LeftIndex,
+							node->Head.RightIndex);
 			else
 			{
 				printf("\033[37m%snode: (null)\033[0m\n", isRight?"r":"l");
@@ -999,7 +1007,14 @@ protected:
 		{
 			printf("\033[37m\\-\033[0m");
 			if(node)
-				printf("\033[%smroot: (%s)[%s][p%u:c%u:l%u:r%u]\033[0m\n", IsRed(node)?"31":"34", IsLeaf(node)?"leaf":KeySerialization<KeyT>::Serialization(node->Key).c_str(), IsBlack(node)?"black":"red", node->Head.ParentIndex, nodeIndex, node->Head.LeftIndex, node->Head.RightIndex);
+				printf("\033[%smroot: (%s)[%s][p%u:c%u:l%u:r%u]\033[0m\n",
+							IsRed(node)?"31":"34",
+							IsLeaf(node)?"leaf":KeySerialization<KeyT>::Serialization(node->Key).c_str(),
+							IsBlack(node)?"black":"red",
+							node->Head.ParentIndex,
+							nodeIndex,
+							node->Head.LeftIndex,
+							node->Head.RightIndex);
 			else
 			{
 				printf("\033[37mroot: (null)\033[0m\n");
@@ -1021,8 +1036,6 @@ protected:
 		m_NodeBlockTable.GetBlock(node->Head.RightIndex, &rightNode);
 		PrintRBNode(rightNode, layer+1, true, flags);
 	}
-
-
 
 	MultiBlockTable<TYPELIST_2(TreeNodeType, ValueT), TernaryTreeHead<IndexT>, IndexT> m_NodeBlockTable;
 

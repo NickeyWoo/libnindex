@@ -86,8 +86,8 @@ template<typename T, typename F>
 T alias_cast(F rawdata)
 {
 	alias_cast_t<T, F> ac;
-	ac.raw = rawdata;
-	return ac.data;
+	ac.data = rawdata;
+	return ac.raw;
 }
 
 #ifndef ntohll

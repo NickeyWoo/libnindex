@@ -53,13 +53,13 @@ public:
 	static inline size_t GetBufferSize(size_t n, double pError)
 	{
 		double sz = 0 - log(pError) * n / pow(log(2), 2);
-		return ceil(sz / 8);
+		return (size_t)ceil(sz / 8);
 	}
 
 	static inline size_t GetK(size_t n, double pError)
 	{
 		size_t m = GetBufferSize(n, pError) * 8;
-		return m * log(2) / n;
+		return (size_t)(m * log(2) / n);
 	}
 
 	void Delete()

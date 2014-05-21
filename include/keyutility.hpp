@@ -228,7 +228,12 @@ struct KeyCompare<float>
 {
 	static int Compare(float key1, float key2)
 	{
-		return key1 - key2;
+		if(key1 > key2)
+			return 1;
+		else if(key1 < key2)
+			return -1;
+		else
+			return 0;
 	}
 };
 
@@ -237,7 +242,12 @@ struct KeyCompare<double>
 {
 	static int Compare(double key1, double key2)
 	{
-		return key1 - key2;
+		if(key1 > key2)
+			return 1;
+		else if(key1 < key2)
+			return -1;
+		else
+			return 0;
 	}
 };
 
