@@ -215,9 +215,9 @@ N-Index is common data index and storage library.
 	}
 ```
 
-# **Examples [More][1]**
-# **libnindex [doc][10]**
-# **libnindex [ppt][11]**
+* **[examples][1]**
+* **[doc][10]**
+* **[ppt][11]**
 
 
   [1]: https://github.com/NickeyWoo/libnindex/tree/master/example
