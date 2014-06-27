@@ -295,6 +295,12 @@ public:
 		PrintNode(node, 0, false, flags);
 	}
 
+	HeadT* GetHead()
+	{
+		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		return &pHead->Head;
+	}
+
 protected:
 	inline RBTreeNodeType* TreeNodeMaximum(RBTreeNodeType* pNode)
 	{
