@@ -216,7 +216,9 @@ N-Index is common data index and storage library.
 ```
 
 **Examples** [More][1]
+
 **libnindex** [doc][10]
+
 **libnindex** [libnindex ppt][11]
 
 
