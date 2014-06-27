@@ -216,16 +216,20 @@ N-Index is common data index and storage library.
 ```
 
 [More examples...][1]
+[libnindex doc][10]
+[libnindex ppt][11]
 
-  [1]: https://github.com/NickeyWoo/nindex/tree/master/example
-  [2]: https://github.com/NickeyWoo/nindex/blob/master/example/hashtable_main.cpp
-  [3]: https://github.com/NickeyWoo/nindex/blob/master/example/bitmap_main.cpp
-  [4]: https://github.com/NickeyWoo/nindex/blob/master/example/bloomfilter_main.cpp
-  [5]: https://github.com/NickeyWoo/nindex/blob/master/example/blocktable_main.cpp
-  [6]: https://github.com/NickeyWoo/nindex/blob/master/example/rbtree_main.cpp
-  [7]: https://github.com/NickeyWoo/nindex/blob/master/example/heap_main.cpp
-  [8]: https://github.com/NickeyWoo/nindex/blob/master/example/kdtree_main.cpp
-  [9]: https://github.com/NickeyWoo/nindex/blob/master/example/ternarytree_main.cpp
+  [1]: https://github.com/NickeyWoo/libnindex/tree/master/example
+  [2]: https://github.com/NickeyWoo/libnindex/tree/master/example/hashtable_main.cpp
+  [3]: https://github.com/NickeyWoo/libnindex/tree/master/example/bitmap_main.cpp
+  [4]: https://github.com/NickeyWoo/libnindex/tree/master/example/bloomfilter_main.cpp
+  [5]: https://github.com/NickeyWoo/libnindex/tree/master/example/blocktable_main.cpp
+  [6]: https://github.com/NickeyWoo/libnindex/tree/master/example/rbtree_main.cpp
+  [7]: https://github.com/NickeyWoo/libnindex/tree/master/example/heap_main.cpp
+  [8]: https://github.com/NickeyWoo/libnindex/tree/master/example/kdtree_main.cpp
+  [9]: https://github.com/NickeyWoo/libnindex/tree/master/example/ternarytree_main.cpp
+  [10]: https://github.com/NickeyWoo/libnindex/blob/master/docs/libnindex%E4%B9%8B%E5%90%8E%E5%8F%B0%E5%B8%B8%E7%94%A8%E7%B4%A2%E5%BC%95%E6%8A%80%E6%9C%AF%E6%B5%85%E6%9E%90.docx?raw=true
+  [11]: https://github.com/NickeyWoo/libnindex/blob/master/docs/nindex.pptx?raw=true
 
 
 
