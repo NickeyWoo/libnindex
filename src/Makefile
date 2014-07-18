@@ -7,7 +7,7 @@
 include ../Makefile.env
 
 TARGET := ../lib/libnindex.a
-LIB_OBJS := objs/hashtable.o objs/utility.o objs/storage.o objs/file.o
+LIB_OBJS := objs/hashtable.o objs/utility.o objs/storage.o
 CITYHASH_OBJ := ../thirdparty/cityhash-1.1.1/objs/city.o
 
 all: $(TARGET)

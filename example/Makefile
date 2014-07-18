@@ -6,7 +6,7 @@
 
 include ../Makefile.env
 
-TARGET := ../bin/hashtable_example ../bin/bitmap_example ../bin/bloomfilter_example ../bin/rbtree_example ../bin/blocktable_example ../bin/kdtree_example ../bin/heap_example ../bin/ternarytree_example ../bin/btree_example
+TARGET := ../bin/hashtable_example ../bin/bitmap_example ../bin/bloomfilter_example ../bin/rbtree_example ../bin/blocktable_example ../bin/kdtree_example ../bin/heap_example ../bin/ternarytree_example
 
 all: $(TARGET)
 
@@ -37,16 +37,6 @@ clean:
 
 ../bin/ternarytree_example: objs/ternarytree_main.o
 	$(CXX) $^ -o $@ $(LIBS)
-
-../bin/btree_example: objs/btree_main.o
-	$(CXX) $^ -o $@ $(LIBS)
-
-
-
-
-
-
-
 
 
 
