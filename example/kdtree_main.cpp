@@ -22,7 +22,6 @@
 #include <boost/format.hpp>
 #include "utility.hpp"
 #include "storage.hpp"
-#define KDTREE_USE_DRAW2DMAP
 #include "kdtree.hpp"
 
 struct Value {
@@ -65,7 +64,9 @@ int main(int argc, char* argv[])
 	key[0] = (random() * time(NULL)) % 99;
 	key[1] = (random() * time(NULL)) % 99;
 
+#ifdef KDTREE_USE_DRAW2DMAP
 	kdtree.Draw2DMap("map.jpg", key[0], key[1]);
+#endif
 
 #define SEARCH_COUNT	5
 
