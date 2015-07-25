@@ -24,16 +24,23 @@
 #include "bloomfilter.hpp"
 #include "hashtable.hpp"
 
-#define INSERT_NUM 1000
-
 int main(int argc, char* argv[])
 {
-	size_t size = BloomFilter<std::string>::GetBufferSize(INSERT_NUM, 0.001);
-	size_t k = BloomFilter<std::string>::GetK(INSERT_NUM, 0.001);
+    if(argc < 3)
+    {
+        printf("usage: bloomfilter [num] [error]\n");
+        return 0;
+    }
+
+    uint32_t dwNum = strtoul(argv[1], NULL, 10);
+    double dError = strtod(argv[2], NULL) / 100;
+
+	size_t size = BloomFilter<std::string>::GetBufferSize(dwNum, dError);
+	size_t k = BloomFilter<std::string>::GetK(dwNum, dError);
 	BloomFilter<std::string> bf = BloomFilter<std::string>::CreateBloomFilter(size, k);
 
-	double success = 0;
-	for(uint32_t i=0; i<INSERT_NUM; ++i)
+	uint32_t success = 0;
+	for(uint32_t i=0; i<dwNum; ++i)
 	{
 		std::string strUrl = (boost::format("http://voanews.com/article/%u") % i).str();
 		if(bf.Contains(strUrl))
@@ -44,7 +51,9 @@ int main(int argc, char* argv[])
 		bf.Add(strUrl);
 	}
 
-	printf("success count: %u[size:%lu, k:%lu]\n", (uint32_t)success, size, k);
+    printf("size:%lu, k:%lu\n", size, k);
+    printf("capacity: %.02f%%\n", bf.Capacity() * 100);
+	printf("success count(%.02f%%): %u, %u\n", (float)success * 100 / dwNum, success, dwNum);
 
 	// dump bloomfilter bitmap buffer
 	// bf.Dump();

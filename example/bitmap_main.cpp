@@ -29,7 +29,7 @@ struct Key
 
 int main(int argc, char* argv[])
 {
-	Bitmap<Key&> bm = Bitmap<Key&>::CreateBitmap(4096);
+	Bitmap<int> bm = Bitmap<int>::CreateBitmap(4096);
 
 	int i=0;
 	for(; i<5000; ++i)
@@ -40,13 +40,14 @@ int main(int argc, char* argv[])
 		key.ddwUserId = random();
 		sprintf(key.sAttributeName, "%lu", random());
 
-		if(bm.Contains(key))
+		if(bm.Contains(i))
 			break;
 
-		bm.Set(key);
+		bm.Set(i);
 	}
 
 	printf("set count: %d\n", i);
+	printf("capacity: %.02f%%\n", bm.Capacity() * 100);
 
 	// dump bitmap buffer
 	bm.Dump();

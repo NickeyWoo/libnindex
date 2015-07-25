@@ -21,9 +21,7 @@
 #include "utility.hpp"
 #include "storage.hpp"
 
-#define FILESTORAGE_DEFAULT_WRITE_BUFFERSIZE		4096
-
-int FileStorage::OpenStorage(FileStorage* pStorage, const char* szFile, size_t size, off_t pos)
+int MapStorage::OpenStorage(MapStorage* pStorage, const char* szFile, size_t size, off_t pos)
 {
 	if(pStorage == NULL)
 		return -1;
@@ -70,18 +68,18 @@ int FileStorage::OpenStorage(FileStorage* pStorage, const char* szFile, size_t s
 	return 0;
 }
 
-void FileStorage::Flush()
+void MapStorage::Flush(int flags)
 {
-	msync(m_Buffer, m_BufferSize, MS_SYNC);
+	msync(m_Buffer, m_BufferSize, flags);
 }
 
-void FileStorage::Release()
+void MapStorage::Release()
 {
-	Flush();
+	Flush(MS_SYNC);
 	munmap(m_Buffer, m_BufferSize);
 }
 
-FileStorage::FileStorage() :
+MapStorage::MapStorage() :
 	m_fd(-1),
 	m_Buffer(NULL),
 	m_BufferSize(0)
@@ -127,5 +125,48 @@ SharedMemoryStorage::SharedMemoryStorage() :
 	m_BufferSize(0)
 {
 }
+
+int FileStorage::OpenStorage(FileStorage* pStorage, size_t size)
+{
+    if(pStorage == NULL)
+        return -1;
+
+    pStorage->m_BufferSize = size;
+    pStorage->m_Buffer = (char*)malloc(size);
+    if(pStorage->m_Buffer == NULL)
+        return -1;
+
+    return 0;
+}
+
+void FileStorage::Release()
+{
+    if(m_Buffer)
+        free(m_Buffer);
+}
+
+FileStorage::FileStorage() :
+    m_Buffer(NULL),
+    m_BufferSize(0)
+{
+}
+
+int FileStorage::Flush(const char* szFile)
+{
+    int fd = open(szFile, O_CREAT|O_RDWR, 0666);
+    if(fd == -1)
+        return -1;
+
+    if(-1 == write(fd, m_Buffer, m_BufferSize))
+    {
+        close(0);
+        return -1;
+    }
+
+    close(fd);
+    return 0;
+}
+
+
 
 

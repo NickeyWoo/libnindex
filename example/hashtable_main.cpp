@@ -41,17 +41,24 @@ struct A
 	bool isred;
 } __attribute__((packed));
 
+struct B
+{
+    uint32_t c;
+    uint32_t b[0];
+} __attribute__((packed));
+
 int main(int argc, char* argv[])
 {
 	Seed seed(10, 10);
-	FileStorage fs;
-	if(FileStorage::OpenStorage(&fs, "./database.data", HashTable<Key&, Value>::GetBufferSize(seed)) < 0)
+	MapStorage fs;
+	if(MapStorage::OpenStorage(&fs, "./database.data", HashTable<Key&, Value>::GetBufferSize(seed)) < 0)
 	{
 		printf("error: open data file fail.\n");
 		return -1;
 	}
 
 	HashTable<Key&, Value> ht = HashTable<Key&, Value>::LoadHashTable(fs, seed);
+    seed.Release();
 
 	uint32_t i=0;
 	for(; i<5000; ++i)
@@ -72,6 +79,7 @@ int main(int argc, char* argv[])
 	}
 
 	printf("insert count: %d\n", i);
+	printf("capacity: %.02f%%\n", ht.Capacity() * 100);
 
 	// dump hashtable buffer
 	ht.Dump();

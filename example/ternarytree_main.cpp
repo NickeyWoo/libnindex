@@ -57,15 +57,15 @@ struct dict {
 
 int main(int argc, char* argv[])
 {
-/*
-	FileStorage fs;
-	if(FileStorage::OpenStorage(&fs, "TernaryTree.index", TernaryTree<char>::GetBufferSize(100, 10)) < 0)
+
+	MapStorage fs;
+	if(MapStorage::OpenStorage(&fs, "MapStorage_55449c56.ternarytree", TernaryTree<Value>::GetBufferSize(6, 29)) < 0)
 	{
 		printf("error: open file fail.\n");
 		return -1;
 	}
-	TernaryTree<Value> tt = TernaryTree<Value>::LoadTernaryTree(fs, 100, 10);
-*/
+	TernaryTree<Value> tt = TernaryTree<Value>::LoadTernaryTree(fs, 6, 29);
+/*
 	TernaryTree<Value> tt = TernaryTree<Value>::CreateTernaryTree(sizeof(dicts)/sizeof(dict), 10);
 
 	printf("dicts:\n");
@@ -76,8 +76,10 @@ int main(int argc, char* argv[])
 			break;
 		pValue->TweetID = i;
 	}
+*/
 
 	printf("\n");
+    printf("capacity: %.02f%%\n", tt.Capacity() * 100);
 	printf("DumpTree:\n");
 	tt.DumpTree();
 
@@ -100,8 +102,8 @@ int main(int argc, char* argv[])
 	char buffer[20];
 	memset(buffer, 0, 20);
 
-//	const char* pPrefixStr = "大";
-	const char* pPrefixStr = "a";
+	const char* pPrefixStr = "北京";
+//	const char* pPrefixStr = "a";
 	printf("prefix search: \"%s\"\n", pPrefixStr);
 	TernaryTree<Value>::TernaryTreeIterator iter = tt.PrefixSearch(pPrefixStr);
 

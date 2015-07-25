@@ -24,43 +24,62 @@
 #include "storage.hpp"
 #include "kdtree.hpp"
 
-struct Value {
-	uint32_t Uin;
+struct TweetLBSInfo {
+	uint64_t ddwTweetId;
 };
 
 #define TIME_COST(t1, t2)			\
 			(double)((t2.tv_sec * 1000000 + t2.tv_usec) - (t1.tv_sec * 1000000 + t1.tv_usec)) / 1000000
 
-#define INSERT_NUM 50
+#define INSERT_NUM 500
 
 int main(int argc, char* argv[])
 {
-	KDTree<Value, 2> kdtree = KDTree<Value, 2>::CreateKDTree(INSERT_NUM);
+    MapStorage fs;
+    if(MapStorage::OpenStorage(&fs, "./map1.kdtree", KDTree<TweetLBSInfo, 2>::GetBufferSize(INSERT_NUM)) < 0)
+    {
+        printf("error: open storage fail.\n");
+        return -1;
+    }
 
-	std::vector<KDTree<Value, 2>::DataType> vData;
-	for(uint32_t i=0; i<INSERT_NUM; ++i)
-	{
-		KDTree<Value, 2>::DataType item;
-		item.Vector[0] = random() % 99;
-		item.Vector[1] = random() % 99;
-		item.Value.Uin = i;
+	KDTree<TweetLBSInfo, 2> kdtree = KDTree<TweetLBSInfo, 2>::LoadKDTree(fs);
 
-		vData.push_back(item);
-		//printf("new vector (%u, %u)\n", item.Vector[0], item.Vector[1]);
-	}
+    if(argc > 1)
+    {
+        std::vector<KDTree<TweetLBSInfo, 2>::DataType> vData;
+        for(uint32_t i=0; i<INSERT_NUM; ++i)
+        {
+            KDTree<TweetLBSInfo, 2>::DataType item;
+            item.Vector[0] = random() % 99;
+            item.Vector[1] = random() % 99;
+            item.Value.ddwTweetId = i;
 
-	timeval t1, t2;
-	gettimeofday(&t1, NULL);
-	kdtree.Build(vData);
-	gettimeofday(&t2, NULL);
-	printf("const: %.03fs\n", TIME_COST(t1, t2));
+            vData.push_back(item);
+            //printf("new vector (%u, %u)\n", item.Vector[0], item.Vector[1]);
+        }
 
+
+        timeval t1, t2;
+        gettimeofday(&t1, NULL);
+        if(0 != kdtree.Build(vData))
+        {
+            printf("error: kdtree build fail.\n");
+        }
+        gettimeofday(&t2, NULL);
+        printf("const: %.03fs\n", TIME_COST(t1, t2));
+
+        return 0;
+    }
+
+/*
+    printf("capacity: %.02f%%\n", kdtree.Capacity() * 100);
 	printf("Tree Dump:\n");
 	kdtree.DumpTree();
 
 	printf("\n");
+*/
 
-	KDTree<Value, 2>::VectorType key;
+	KDTree<TweetLBSInfo, 2>::VectorType key;
 	key[0] = (random() * time(NULL)) % 99;
 	key[1] = (random() * time(NULL)) % 99;
 
@@ -72,7 +91,7 @@ int main(int argc, char* argv[])
 
 	uint32_t range = 0;
 
-	KDTree<Value, 2>::DataType buffer[SEARCH_COUNT];
+	KDTree<TweetLBSInfo, 2>::DataType buffer[SEARCH_COUNT];
 	int foundCount = kdtree.Nearest(key, buffer, SEARCH_COUNT);
 	printf("nearest (%u, %u):\n", key[0], key[1]);
 	for(int i=0; i<foundCount; ++i)
@@ -95,7 +114,6 @@ int main(int argc, char* argv[])
 
 	printf("\n");
 
-	kdtree.Delete();
 	return 0;
 }
 

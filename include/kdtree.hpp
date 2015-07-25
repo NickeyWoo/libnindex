@@ -59,35 +59,32 @@ struct KDVector
 
 } __attribute__((packed));
 
-template<typename IndexT>
 struct KDNodeHead
 {
 	uint8_t SplitDimension;
 
-	IndexT LeftIndex;
-	IndexT RightIndex;
-	IndexT ParentIndex;
+	uint32_t LeftIndex;
+	uint32_t RightIndex;
+	uint32_t ParentIndex;
 } __attribute__((packed));
 
-template<typename ValueT, uint8_t DimensionValue, typename KeyT, typename IndexT>
+template<typename ValueT, uint8_t DimensionValue, typename KeyT>
 struct KDNode
 {
-	KDNodeHead<IndexT> Head;
+	KDNodeHead Head;
 
 	KDVector<KeyT, DimensionValue> Vector;
 	ValueT Value;
 } __attribute__((packed));
 
-template<typename IndexT>
 struct KDTreeHead
 {
-	IndexT RootIndex;
+	uint32_t RootIndex;
 	uint32_t Count;
 } __attribute__((packed));
 
-template<typename ValueT, uint8_t DimensionValue, 
-			typename KeyT = uint32_t, template<typename, typename, uint8_t> class DistanceT = EuclideanDistance, 
-			typename IndexT = uint32_t>
+template<typename ValueT, uint8_t DimensionValue, typename KeyT = uint32_t, 
+         template<typename, typename, uint8_t> class DistanceT = EuclideanDistance>
 class KDTree
 {
 public:
@@ -98,41 +95,47 @@ public:
 		ValueT Value;
 	} DataType;
 
-	static KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> CreateKDTree(IndexT size)
+	static KDTree<ValueT, DimensionValue, KeyT, DistanceT> CreateKDTree(uint32_t size)
 	{
-		KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> kdtree;
-		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-												KDTreeHead<IndexT>, IndexT>::CreateBlockTable(2*size);
+		KDTree<ValueT, DimensionValue, KeyT, DistanceT> kdtree;
+		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT>, KDTreeHead>::CreateBlockTable(2 * size);
 		return kdtree;
 	}
 
-	static KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> LoadKDTree(char* buffer, size_t size)
+	static KDTree<ValueT, DimensionValue, KeyT, DistanceT> LoadKDTree(char* buffer, size_t size)
 	{
-		KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> kdtree;
-		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-												KDTreeHead<IndexT>, IndexT>::LoadBlockTable(buffer, size);
+		KDTree<ValueT, DimensionValue, KeyT, DistanceT> kdtree;
+		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT>, KDTreeHead>::LoadBlockTable(buffer, size);
 		return kdtree;
 	}
 
 	template<typename StorageT>
-	static KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> LoadKDTree(StorageT storage)
+	static KDTree<ValueT, DimensionValue, KeyT, DistanceT> LoadKDTree(StorageT storage)
 	{
-		KDTree<ValueT, DimensionValue, KeyT, DistanceT, IndexT> kdtree;
-		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-												KDTreeHead<IndexT>, IndexT>::LoadBlockTable(storage);
+		KDTree<ValueT, DimensionValue, KeyT, DistanceT> kdtree;
+		kdtree.m_NodeBlockTable = BlockTable<KDNode<ValueT, DimensionValue, KeyT>, KDTreeHead>::LoadBlockTable(storage);
 		return kdtree;
 	}
 
-	static inline size_t GetBufferSize(IndexT size)
+	static inline size_t GetBufferSize(uint32_t size)
 	{
-		return BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-							KDTreeHead<IndexT>, IndexT>::GetBufferSize(2*size);
+		return BlockTable<KDNode<ValueT, DimensionValue, KeyT>, KDTreeHead>::GetBufferSize(2 * size);
 	}
 
 	static inline KeyT Distance(VectorType& v1, VectorType& v2)
 	{
 		return DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(v1, v2);
 	}
+
+    inline bool Success()
+    {
+        return m_NodeBlockTable.Success();
+    }
+
+    inline float Capacity()
+    {
+        return m_NodeBlockTable.Capacity();
+    }
 
 	void Delete()
 	{
@@ -148,9 +151,9 @@ public:
 		typename std::vector<DataType>::iterator iter = std::unique(vData.begin(), vData.end(), DataCompare(DataCompare::COMPARE_EQUAL));
 		vData.resize(std::distance(vData.begin(), iter));
 
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		KDTreeHead* pHead = m_NodeBlockTable.GetHead();
 		pHead->Count = vData.size();
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pRootNode = m_NodeBlockTable[pHead->RootIndex];
+		KDNode<ValueT, DimensionValue, KeyT>* pRootNode = m_NodeBlockTable[pHead->RootIndex];
 		if(pRootNode)
 			return -1;
 
@@ -162,14 +165,14 @@ public:
 		if(buffer == NULL || size == 0)
 			return 0;
 
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		KDTreeHead* pHead = m_NodeBlockTable.GetHead();
 		if(!m_NodeBlockTable[pHead->RootIndex])
 			return 0;
 
-		MinimumHeap<KeyT, IndexT> miniheap = MinimumHeap<KeyT, IndexT>::CreateHeap(MAX_LOOPCOUNT);
+		MinimumHeap<KeyT, uint32_t> miniheap = MinimumHeap<KeyT, uint32_t>::CreateHeap(MAX_LOOPCOUNT);
 		MaximumHeap<KeyT, DataType> nearestMaxHeap = MaximumHeap<KeyT, DataType>::CreateHeap(size);
 
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = FindToLeaf(key, pHead->RootIndex, miniheap);
+		KDNode<ValueT, DimensionValue, KeyT>* pNode = FindToLeaf(key, pHead->RootIndex, miniheap);
 		DataType* pData = nearestMaxHeap.Push(DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(pNode->Vector, key));
 		pData->Vector = pNode->Vector;
 		pData->Value = pNode->Value;
@@ -178,7 +181,7 @@ public:
 		while(miniheap.Count() > 0 && loop < MAX_LOOPCOUNT)
 		{
 			KeyT hyperplaneDistance;
-			IndexT miniOtherIndex = *miniheap.Minimum(&hyperplaneDistance);
+			uint32_t miniOtherIndex = *miniheap.Minimum(&hyperplaneDistance);
 			miniheap.Pop();
 
 			KeyT maxDistance = 0;
@@ -217,14 +220,14 @@ public:
 		if(buffer == NULL || size == 0)
 			return 0;
 
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		KDTreeHead* pHead = m_NodeBlockTable.GetHead();
 		if(!m_NodeBlockTable[pHead->RootIndex])
 			return 0;
 
-		MinimumHeap<KeyT, IndexT> miniheap = MinimumHeap<KeyT, IndexT>::CreateHeap(MAX_LOOPCOUNT);
+		MinimumHeap<KeyT, uint32_t> miniheap = MinimumHeap<KeyT, uint32_t>::CreateHeap(MAX_LOOPCOUNT);
 		MaximumHeap<KeyT, DataType> nearestMaxHeap = MaximumHeap<KeyT, DataType>::CreateHeap(size);
 
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = FindToLeafWithRange(key, range, pHead->RootIndex, miniheap);
+		KDNode<ValueT, DimensionValue, KeyT>* pNode = FindToLeafWithRange(key, range, pHead->RootIndex, miniheap);
 		KeyT distance = DistanceT<KeyT, KDVector<KeyT, DimensionValue>, DimensionValue>::Distance(pNode->Vector, key);
 		if(distance <= range)
 		{
@@ -237,7 +240,7 @@ public:
 		while(miniheap.Count() > 0 && loop < MAX_LOOPCOUNT)
 		{
 			KeyT hyperplaneDistance;
-			IndexT miniOtherIndex = *miniheap.Minimum(&hyperplaneDistance);
+			uint32_t miniOtherIndex = *miniheap.Minimum(&hyperplaneDistance);
 			miniheap.Pop();
 
 			KeyT maxDistance = 0;
@@ -281,15 +284,15 @@ public:
 		std::vector<bool> flags;
 		flags.push_back(false);
 
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* node = m_NodeBlockTable[pHead->RootIndex];
+		KDTreeHead* pHead = m_NodeBlockTable.GetHead();
+		KDNode<ValueT, DimensionValue, KeyT>* node = m_NodeBlockTable[pHead->RootIndex];
 		printf("Node Count: %u\n", pHead->Count);
 		PrintNode(node, 0, false, flags);
 	}
 
 #ifdef KDTREE_USE_DRAW2DMAP
 
-	void DrawNode(Magick::Image& img, KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode, double x, double y, double ex, double ey)
+	void DrawNode(Magick::Image& img, KDNode<ValueT, DimensionValue, KeyT>* pNode, double x, double y, double ex, double ey)
 	{
 		if(!pNode)
 			return;
@@ -365,7 +368,7 @@ public:
 		if(!szFile || DimensionValue != 2)
 			return;
 
-		KDTreeHead<IndexT>* pHead = m_NodeBlockTable.GetHead();
+		KDTreeHead* pHead = m_NodeBlockTable.GetHead();
 
 		Magick::Color backgroundColor(0xFFFF, 0xFFFF, 0xFFFF);
 		Magick::Geometry size(IMG_SIZE, IMG_SIZE);
@@ -397,9 +400,9 @@ public:
 
 protected:
 
-	KDNode<ValueT, DimensionValue, KeyT, IndexT>* FindToLeafWithRange(VectorType key, KeyT range, IndexT nodeIndex, MinimumHeap<KeyT, IndexT>& min_pq)
+	KDNode<ValueT, DimensionValue, KeyT>* FindToLeafWithRange(VectorType key, KeyT range, uint32_t nodeIndex, MinimumHeap<KeyT, uint32_t>& min_pq)
 	{
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = NULL;
+		KDNode<ValueT, DimensionValue, KeyT>* pNode = NULL;
 		while((pNode = m_NodeBlockTable[nodeIndex]) && !IsLeaf(pNode))
 		{
 			KeyT distance = (KeyT)fabs(pNode->Vector[pNode->Head.SplitDimension] - key[pNode->Head.SplitDimension]);
@@ -408,7 +411,7 @@ protected:
 				nodeIndex = pNode->Head.LeftIndex;
 				if(distance <= range)
 				{
-					IndexT* pValue = min_pq.Push(distance);
+					uint32_t* pValue = min_pq.Push(distance);
 					if(pValue)
 						*pValue = pNode->Head.RightIndex;
 				}
@@ -418,7 +421,7 @@ protected:
 				nodeIndex = pNode->Head.RightIndex;
 				if(distance <= range)
 				{
-					IndexT* pValue = min_pq.Push(distance);
+					uint32_t* pValue = min_pq.Push(distance);
 					if(pValue)
 						*pValue = pNode->Head.LeftIndex;
 				}
@@ -427,23 +430,23 @@ protected:
 		return pNode;
 	}
 
-	KDNode<ValueT, DimensionValue, KeyT, IndexT>* FindToLeaf(VectorType key, IndexT nodeIndex, MinimumHeap<KeyT, IndexT>& min_pq)
+	KDNode<ValueT, DimensionValue, KeyT>* FindToLeaf(VectorType key, uint32_t nodeIndex, MinimumHeap<KeyT, uint32_t>& min_pq)
 	{
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = NULL;
+		KDNode<ValueT, DimensionValue, KeyT>* pNode = NULL;
 		while((pNode = m_NodeBlockTable[nodeIndex]) && !IsLeaf(pNode))
 		{
 			KeyT distance = (KeyT)fabs(pNode->Vector[pNode->Head.SplitDimension] - key[pNode->Head.SplitDimension]);
 			if(key[pNode->Head.SplitDimension] < pNode->Vector[pNode->Head.SplitDimension])
 			{
 				nodeIndex = pNode->Head.LeftIndex;
-				IndexT* pValue = min_pq.Push(distance);
+				uint32_t* pValue = min_pq.Push(distance);
 				if(pValue)
 					*pValue = pNode->Head.RightIndex;
 			}
 			else
 			{
 				nodeIndex = pNode->Head.RightIndex;
-				IndexT* pValue = min_pq.Push(distance);
+				uint32_t* pValue = min_pq.Push(distance);
 				if(pValue)
 					*pValue = pNode->Head.LeftIndex;
 			}
@@ -451,12 +454,12 @@ protected:
 		return pNode;
 	}
 
-	int BuildTree(IndexT* pNodeIndex, KDNode<ValueT, DimensionValue, KeyT, IndexT>* pParentNode,
+	int BuildTree(uint32_t* pNodeIndex, KDNode<ValueT, DimensionValue, KeyT>* pParentNode,
 					typename std::vector<DataType>::iterator iterBegin, 
 					typename std::vector<DataType>::iterator iterEnd)
 	{
 		*pNodeIndex = m_NodeBlockTable.AllocateBlock();
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode = m_NodeBlockTable[*pNodeIndex];
+		KDNode<ValueT, DimensionValue, KeyT>* pNode = m_NodeBlockTable[*pNodeIndex];
 		if(!pNode)
 			return -1;
 		
@@ -565,12 +568,12 @@ protected:
 		return (iterBegin + median)->Vector;
 	}
 
-	inline bool IsLeaf(KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode)
+	inline bool IsLeaf(KDNode<ValueT, DimensionValue, KeyT>* pNode)
 	{
 		return (m_NodeBlockTable[pNode->Head.LeftIndex] == NULL && m_NodeBlockTable[pNode->Head.RightIndex] == NULL);
 	}
 
-	std::string NodeSerialization(KDNode<ValueT, DimensionValue, KeyT, IndexT>* pNode)
+	std::string NodeSerialization(KDNode<ValueT, DimensionValue, KeyT>* pNode)
 	{
 		std::string str;
 		if(IsLeaf(pNode))
@@ -592,9 +595,9 @@ protected:
 		return str;
 	}
 
-	void PrintNode(KDNode<ValueT, DimensionValue, KeyT, IndexT>* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
+	void PrintNode(KDNode<ValueT, DimensionValue, KeyT>* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
 	{
-		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(node);
+		uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(node);
 		if(layer > 0)
 		{
 			for(uint32_t c=0; c<layer; ++c)
@@ -651,15 +654,14 @@ protected:
 			flags.at(layer) = true;
 
 		flags.push_back(true);
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* leftNode = m_NodeBlockTable[node->Head.LeftIndex];
+		KDNode<ValueT, DimensionValue, KeyT>* leftNode = m_NodeBlockTable[node->Head.LeftIndex];
 		PrintNode(leftNode, layer+1, false, flags);
 
-		KDNode<ValueT, DimensionValue, KeyT, IndexT>* rightNode = m_NodeBlockTable[node->Head.RightIndex];
+		KDNode<ValueT, DimensionValue, KeyT>* rightNode = m_NodeBlockTable[node->Head.RightIndex];
 		PrintNode(rightNode, layer+1, true, flags);
 	}
 
-	BlockTable<KDNode<ValueT, DimensionValue, KeyT, IndexT>, 
-				KDTreeHead<IndexT>, IndexT> m_NodeBlockTable;
+	BlockTable<KDNode<ValueT, DimensionValue, KeyT>, KDTreeHead> m_NodeBlockTable;
 };
 
 #endif // define __KDTREE_HPP__

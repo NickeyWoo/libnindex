@@ -77,15 +77,16 @@ void MultiTestInsert(MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>& mbt, u
 
 int main(int argc, char* argv[])
 {
-	FileStorage fs;
-	FileStorage::OpenStorage(&fs, "./blocktable.data", BlockTable<Value, void, uint16_t>::GetBufferSize(20));
-
-	BlockTable<Value, void, uint16_t> bt = BlockTable<Value, void, uint16_t>::LoadBlockTable(fs);
+/*
+	MapStorage fs;
+	MapStorage::OpenStorage(&fs, "./blocktable.data", BlockTable<Value, void>::GetBufferSize(20));
+*/
+	BlockTable<Value, void> bt = BlockTable<Value, void>::CreateBlockTable(20);
 
 	// 填充一部分blocktable空间
-	for(uint16_t i=0; i<15; ++i)
+	for(uint32_t i=0; i<15; ++i)
 	{
-		uint16_t id = bt.AllocateBlock();
+		uint32_t id = bt.AllocateBlock();
 		Value* pItem = bt[id];
 		if(!pItem)
 			break;
@@ -94,10 +95,17 @@ int main(int argc, char* argv[])
 		bt[id]->Number = i;
 	}
 
+    BlockTableIterator iter = bt.Begin();
+    Value* pVal = NULL;
+    while((pVal = bt.Next(&iter)) != NULL)
+    {
+        printf("list: %u\n", pVal->Number);
+    }
+
 	// 随机释放一部分空间
-	for(uint16_t i=0; i<10; ++i)
+	for(uint32_t i=0; i<10; ++i)
 	{
-		uint16_t id = random() % 19;
+		uint32_t id = random() % 19;
 		if(!id) ++id;
 		Value* pItem = bt[id];
 		if(pItem)
@@ -107,10 +115,17 @@ int main(int argc, char* argv[])
 		}
 	}
 
+    iter = bt.Begin();
+    while((pVal = bt.Next(&iter)) != NULL)
+    {
+        printf("list: %u\n", pVal->Number);
+    }
+
+
 	// 重新填满整个blocktable空间
-	for(uint16_t i=0; i<20; ++i)
+	for(uint32_t i=0; i<20; ++i)
 	{
-		uint16_t id = bt.AllocateBlock();
+		uint32_t id = bt.AllocateBlock();
 		Value* pItem = bt[id];
 		if(!pItem)
 			break;
@@ -119,6 +134,13 @@ int main(int argc, char* argv[])
 		bt[id]->Number = i;
 	}
 
+    iter = bt.Begin();
+    while((pVal = bt.Next(&iter)) != NULL)
+    {
+        printf("list: %u\n", pVal->Number);
+    }
+
+	printf("capacity: %.02f%%\n", bt.Capacity() * 100);
 	bt.Dump();
 	
 	printf("\n\n/////////////////////////////////////////////////////////\n");
@@ -128,8 +150,8 @@ int main(int argc, char* argv[])
 	vSize.push_back(10);
 	vSize.push_back(5);
 
-	//FileStorage fs2;
-	//FileStorage::OpenStorage(&fs2, "./multiblocktable.data", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
+	//MapStorage fs2;
+	//MapStorage::OpenStorage(&fs2, "./multiblocktable.data", MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::GetBufferSize(vSize));
 
 	//MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)> mbt = MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::LoadMultiBlockTable(fs2, vSize);
 	MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)> mbt = MultiBlockTable<TYPELIST_3(Value1, Value2, Value3)>::CreateMultiBlockTable(vSize);
@@ -179,6 +201,7 @@ int main(int argc, char* argv[])
 	printf("\n");
 
 
+	printf("capacity: %.02f%%\n", mbt.Capacity() * 100);
 	mbt.Dump();
 	return 0;
 }

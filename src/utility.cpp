@@ -207,13 +207,13 @@ void HexDump(const char* ptr, size_t len, char** out)
 	}
 }
 
-size_t GetPrime(size_t num)
+uint32_t GetPrime(uint32_t num)
 {
-	for(size_t prime=num; prime>=2; --prime)
+	for(uint32_t prime=num; prime>=2; --prime)
 	{
-		size_t mod = 1;
-		size_t prime_sqrt = (size_t)sqrt(prime);
-		for(size_t i=2; i<=prime_sqrt; ++i)
+		uint32_t mod = 1;
+		uint32_t prime_sqrt = (size_t)sqrt(prime);
+		for(uint32_t i=2; i<=prime_sqrt; ++i)
 		{
 			mod = prime % i;
 			if(!mod)
@@ -225,10 +225,10 @@ size_t GetPrime(size_t num)
 	return 0;
 }
 
-size_t GetPrimes(size_t num, size_t* buffer, size_t len)
+uint32_t GetPrimes(uint32_t num, uint32_t* buffer, uint32_t len)
 {
-	size_t i = 0;
-	for(size_t prime=num; prime>=2 && i<len; --prime, ++i)
+	uint32_t i = 0;
+	for(uint32_t prime=num; prime>=2 && i<len; --prime, ++i)
 	{
 		prime = GetPrime(prime);
 		if(prime == 0)
@@ -238,12 +238,12 @@ size_t GetPrimes(size_t num, size_t* buffer, size_t len)
 	return i;
 }
 
-Seed::Seed(size_t seed, size_t count) :
+Seed::Seed(uint32_t seed, uint32_t count) :
 	m_Buffer(NULL),
 	m_BufferSize(0)
 {
-	m_Buffer = (size_t*)malloc(sizeof(size_t)*count);
-	memset(m_Buffer, 0, sizeof(size_t)*count);
+	m_Buffer = (uint32_t*)malloc(sizeof(uint32_t)*count);
+	memset(m_Buffer, 0, sizeof(uint32_t)*count);
 	m_BufferSize = GetPrimes(seed, m_Buffer, count);
 }
 
@@ -256,10 +256,10 @@ void Seed::Release()
 	}
 }
 
-size_t Seed::GetCount()
+uint32_t Seed::GetCount()
 {
-	size_t count = 0;
-	for(size_t i=0; i<m_BufferSize; ++i)
+	uint32_t count = 0;
+	for(uint32_t i=0; i<m_BufferSize; ++i)
 		count += m_Buffer[i];
 	return count;
 }

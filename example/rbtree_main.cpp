@@ -129,6 +129,8 @@ int main(int argc, char* argv[])
 		*pValue = i;
 	}
 
+    printf("capacity: %.02f%%\n", rbtree.Capacity() * 100);
+
 	Key maxKey;
 	rbtree.Maximum(&maxKey);
 	rbtree.DumpTree();

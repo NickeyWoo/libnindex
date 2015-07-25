@@ -90,6 +90,20 @@ T alias_cast(F rawdata)
 	return ac.raw;
 }
 
+template<size_t v1, size_t v2>
+struct StaticAdd {
+    enum {
+        Value = v1 + v2
+    };
+};
+
+template<size_t v1, size_t v2>
+struct StaticSub {
+    enum {
+        Value = v1 - v2
+    };
+};
+
 #ifndef ntohll
 	#define ntohll(val)	\
 			((uint64_t)ntohl(0xFFFFFFFF&val) << 32 | ntohl((0xFFFFFFFF00000000&val) >> 32))
@@ -107,30 +121,37 @@ uint128_t MD5_128(const char* ptr, size_t len);
 
 void HexDump(const char* ptr, size_t len, char** out);
 
-size_t GetPrime(size_t num);
-size_t GetPrimes(size_t num, size_t* buffer, size_t len);
+uint32_t GetPrime(uint32_t num);
+uint32_t GetPrimes(uint32_t num, uint32_t* buffer, uint32_t len);
 
 class Seed
 {
 public:
-	size_t GetCount();
+	uint32_t GetCount();
 	void Release();
 
-	inline size_t* GetSeedBuffer()
+    inline uint32_t GetSeed(uint32_t idx)
+    {
+        if(idx < m_BufferSize)
+            return m_Buffer[idx];
+        return 0;
+    }
+
+	inline uint32_t* GetSeedBuffer()
 	{
 		return m_Buffer;
 	}
 
-	inline size_t GetSize()
+	inline uint32_t GetSize()
 	{
 		return m_BufferSize;
 	}
 
-	Seed(size_t seed, size_t count);
+	Seed(uint32_t seed, uint32_t count);
 
 private:
-	size_t* m_Buffer;
-	size_t m_BufferSize;
+	uint32_t* m_Buffer;
+	uint32_t m_BufferSize;
 };
 
 #endif // define __UTILITY_HPP__

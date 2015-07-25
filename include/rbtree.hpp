@@ -16,87 +16,128 @@
 #define RBTREE_NODECOLOR_RED		0
 #define RBTREE_NODECOLOR_BLACK		1
 
-template<typename IndexT>
 struct RBTreeNodeHead
 {
 	uint8_t Color;
-	IndexT ParentIndex;
-	IndexT LeftIndex;
-	IndexT RightIndex;
+	uint32_t ParentIndex;
+	uint32_t LeftIndex;
+	uint32_t RightIndex;
 } __attribute__((packed));
 
-template<typename KeyT, typename ValueT, typename IndexT>
+template<typename KeyT, typename ValueT>
 struct RBTreeNode
 {
-	RBTreeNodeHead<IndexT> Head;
+	RBTreeNodeHead Head;
 	KeyT Key;
 	ValueT Value;
 } __attribute__((packed));
 
-template<typename HeadT, typename IndexT>
+#define RBTREE_MAGIC    "RBTREE@@"
+#define RBTREE_VERSION  0x0101
+
+template<typename HeadT>
 struct RBTreeHead
 {
+    char cMagic[8];
+    uint16_t wVersion;
+	uint32_t RootIndex;
+    uint32_t dwReserved[4];
+
 	HeadT Head;
-	IndexT RootIndex;
-	uint64_t Flags;
 } __attribute__((packed));
-template<typename IndexT>
-struct RBTreeHead<void, IndexT>
+template<>
+struct RBTreeHead<void>
 {
-	IndexT RootIndex;
-	uint64_t Flags;
+    char cMagic[8];
+    uint16_t wVersion;
+	uint32_t RootIndex;
+    uint32_t dwReserved[4];
 } __attribute__((packed));
 
-template<typename IndexT>
 struct RBTreeIteratorImpl
 {
-	IndexT Index;
+	uint32_t Index;
 
-	bool operator == (const RBTreeIteratorImpl<IndexT>& iter)
+	bool operator == (const RBTreeIteratorImpl& iter)
 	{
 		return (Index == iter.Index);
 	}
 
-	bool operator != (const RBTreeIteratorImpl<IndexT>& iter)
+	bool operator != (const RBTreeIteratorImpl& iter)
 	{
 		return (Index != iter.Index);
 	}
 };
 
-template<typename KeyT, typename ValueT, typename HeadT = void, typename IndexT = uint32_t>
+template<typename KeyT, typename ValueT, typename HeadT = void>
 class RBTree
 {
 public:
-	typedef RBTreeIteratorImpl<IndexT> RBTreeIterator;
-	typedef RBTreeNode<KeyT, ValueT, IndexT> RBTreeNodeType;
-	typedef RBTree<KeyT, ValueT, HeadT, IndexT> RBTreeType;
+	typedef RBTreeIteratorImpl RBTreeIterator;
+	typedef RBTreeNode<KeyT, ValueT> RBTreeNodeType;
+	typedef RBTree<KeyT, ValueT, HeadT> RBTreeType;
 
-	static RBTreeType CreateRBTree(IndexT size)
+	static RBTreeType CreateRBTree(uint32_t size)
 	{
 		RBTreeType rbt;
-		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<HeadT, IndexT>, IndexT>::CreateBlockTable(size);
+		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<HeadT> >::CreateBlockTable(size);
+
+        RBTreeHead<HeadT>* pstHead = rbt.m_NodeBlockTable.GetHead();
+        if(pstHead)
+        {
+            memcpy(pstHead->cMagic, RBTREE_MAGIC, 8);
+            pstHead->wVersion = RBTREE_VERSION;
+            pstHead->RootIndex = 0;
+        }
 		return rbt;
 	}
 
 	static RBTreeType LoadRBTree(char* buffer, size_t size)
 	{
 		RBTreeType rbt;
-		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<HeadT, IndexT>, IndexT>::LoadBlockTable(buffer, size);
+		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<HeadT> >::LoadBlockTable(buffer, size);
+
+        RBTreeHead<HeadT>* pstHead = rbt.m_NodeBlockTable.GetHead();
+        if(pstHead)
+        {
+            if(memcmp(pstHead->cMagic, "\0\0\0\0\0\0\0\0", 8) == 0)
+            {
+                memcpy(pstHead->cMagic, RBTREE_MAGIC, 8);
+                pstHead->wVersion = RBTREE_VERSION;
+                pstHead->RootIndex = 0;
+            }
+            else
+            {
+                if(memcmp(pstHead->cMagic, RBTREE_MAGIC, 8) != 0 ||
+                    pstHead->wVersion != RBTREE_VERSION)
+                {
+                    rbt.m_NodeBlockTable.Delete();
+                }
+            }
+        }
 		return rbt;
 	}
 
 	template<typename StorageT>
 	static RBTreeType LoadRBTree(StorageT storage)
 	{
-		RBTreeType rbt;
-		rbt.m_NodeBlockTable = BlockTable<RBTreeNodeType, RBTreeHead<HeadT, IndexT>, IndexT>::LoadBlockTable(storage);
-		return rbt;
+		return RBTree<KeyT, ValueT, HeadT>::LoadRBTree(storage.GetStorageBuffer(), storage.GetSize());
 	}
 
-	static inline size_t GetBufferSize(IndexT size)
+	static inline size_t GetBufferSize(uint32_t size)
 	{
-		return BlockTable<RBTreeNodeType, RBTreeHead<HeadT, IndexT>, IndexT>::GetBufferSize(size);
+		return BlockTable<RBTreeNodeType, RBTreeHead<HeadT> >::GetBufferSize(size);
 	}
+
+    inline bool Success()
+    {
+        return m_NodeBlockTable.Success();
+    }
+
+    inline float Capacity()
+    {
+        return m_NodeBlockTable.Capacity();
+    }
 
 	void Delete()
 	{
@@ -105,7 +146,7 @@ public:
 
 	void Clear(KeyT key)
 	{
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 		while(node != NULL)
 		{
@@ -124,7 +165,7 @@ public:
 
 	ValueT* Minimum(KeyT* pKey = NULL)
 	{
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 		RBTreeNodeType* node = TreeNodeMinimum(m_NodeBlockTable[pHead->RootIndex]);
 		if(node)
 		{
@@ -137,7 +178,7 @@ public:
 
 	ValueT* Maximum(KeyT* pKey = NULL)
 	{
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 		RBTreeNodeType* node = TreeNodeMaximum(m_NodeBlockTable[pHead->RootIndex]);
 		if(node)
 		{
@@ -152,7 +193,7 @@ public:
 	{
 		RBTreeIterator iter;
 
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 		RBTreeNodeType* node = TreeNodeMinimum(m_NodeBlockTable[pHead->RootIndex]);
 		if(node)
 			iter.Index = m_NodeBlockTable.GetBlockID(node);
@@ -163,7 +204,7 @@ public:
 
 	RBTreeIterator Iterator(KeyT key)
 	{
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 
 		RBTreeIterator iter;
 		iter.Index = pHead->RootIndex;
@@ -209,7 +250,7 @@ public:
 			RBTreeNodeType* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
 			if(pRightNode == NULL)
 			{
-				IndexT currentNodeIndex = pIter->Index;
+				uint32_t currentNodeIndex = pIter->Index;
 				RBTreeNodeType* pCurrentNode = pNode;
 				RBTreeNodeType* pParentNode = NULL;
 				while((pParentNode = m_NodeBlockTable[pCurrentNode->Head.ParentIndex]) && pParentNode->Head.RightIndex == currentNodeIndex)
@@ -235,11 +276,11 @@ public:
 
 	ValueT* Hash(KeyT key, bool isNew = false)
 	{
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
-		IndexT CurIdx = pHead->RootIndex;
-		IndexT ParentIdx = pHead->RootIndex;
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
+		uint32_t CurIdx = pHead->RootIndex;
+		uint32_t ParentIdx = pHead->RootIndex;
 
-		IndexT* pEmptyIdx = &pHead->RootIndex;
+		uint32_t* pEmptyIdx = &pHead->RootIndex;
 		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 
 		while(node != NULL)
@@ -290,14 +331,14 @@ public:
 		std::vector<bool> flags;
 		flags.push_back(false);
 
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 		RBTreeNodeType* node = m_NodeBlockTable[pHead->RootIndex];
 		PrintNode(node, 0, false, flags);
 	}
 
 	HeadT* GetHead()
 	{
-		RBTreeHead<HeadT, IndexT>* pHead = m_NodeBlockTable.GetHead();
+		RBTreeHead<HeadT>* pHead = m_NodeBlockTable.GetHead();
 		return &pHead->Head;
 	}
 
@@ -316,7 +357,7 @@ protected:
 		return pNode;
 	}
 
-	void TreeNodeTransplantRight(RBTreeNodeType* pNode, IndexT nodeIndex, RBTreeHead<HeadT, IndexT>* pHead)
+	void TreeNodeTransplantRight(RBTreeNodeType* pNode, uint32_t nodeIndex, RBTreeHead<HeadT>* pHead)
 	{
 		if(!pNode || m_NodeBlockTable[pNode->Head.LeftIndex] || !pHead)
 			return;
@@ -338,7 +379,7 @@ protected:
 			pHead->RootIndex = pNode->Head.RightIndex;
 	}
 
-	void TreeNodeTransplantLeft(RBTreeNodeType* pNode, IndexT nodeIndex, RBTreeHead<HeadT, IndexT>* pHead)
+	void TreeNodeTransplantLeft(RBTreeNodeType* pNode, uint32_t nodeIndex, RBTreeHead<HeadT>* pHead)
 	{
 		if(!pNode || m_NodeBlockTable[pNode->Head.RightIndex] || !pHead)
 			return;
@@ -360,9 +401,9 @@ protected:
 			pHead->RootIndex = pNode->Head.LeftIndex;
 	}
 
-	void ClearOneChildNode(RBTreeNodeType* pNode, RBTreeHead<HeadT, IndexT>* pHead)
+	void ClearOneChildNode(RBTreeNodeType* pNode, RBTreeHead<HeadT>* pHead)
 	{
-		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+		uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 		bool needFixup = (pNode->Head.Color == RBTREE_NODECOLOR_BLACK);
 
 		RBTreeNodeType* pFixNode = NULL;
@@ -387,7 +428,7 @@ protected:
 			ClearFixup(pFixNode, pFixParentNode, pHead);
 	}
 
-	void ClearNode(RBTreeNodeType* pNode, RBTreeHead<HeadT, IndexT>* pHead)
+	void ClearNode(RBTreeNodeType* pNode, RBTreeHead<HeadT>* pHead)
 	{
 		if(!pNode)
 			return;
@@ -409,9 +450,9 @@ protected:
 		}
 	}
 
-	void ClearFixup(RBTreeNodeType* pNode, RBTreeNodeType* pParentNode, RBTreeHead<HeadT, IndexT>* pHead)
+	void ClearFixup(RBTreeNodeType* pNode, RBTreeNodeType* pParentNode, RBTreeHead<HeadT>* pHead)
 	{
-		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+		uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 		while((!pNode || pNode->Head.Color == RBTREE_NODECOLOR_BLACK) && nodeIndex != pHead->RootIndex)
 		{
 			if(pParentNode->Head.LeftIndex == nodeIndex)
@@ -506,7 +547,7 @@ protected:
 			pNode->Head.Color = RBTREE_NODECOLOR_BLACK;
 	}
 
-	void InsertFixup(RBTreeNodeType* pNode, RBTreeHead<HeadT, IndexT>* pHead)
+	void InsertFixup(RBTreeNodeType* pNode, RBTreeHead<HeadT>* pHead)
 	{
 		RBTreeNodeType* pParentNode = NULL;
 		while(pNode && 
@@ -514,7 +555,7 @@ protected:
 			  (pParentNode = m_NodeBlockTable[pNode->Head.ParentIndex]) &&
 			  pParentNode->Head.Color == RBTREE_NODECOLOR_RED)
 		{
-			IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+			uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 
 			RBTreeNodeType* pGrandpaNode = m_NodeBlockTable[pParentNode->Head.ParentIndex];
 			if(pGrandpaNode->Head.LeftIndex == pNode->Head.ParentIndex)
@@ -567,12 +608,12 @@ protected:
 		m_NodeBlockTable[pHead->RootIndex]->Head.Color = RBTREE_NODECOLOR_BLACK;
 	}
 
-	void TreeNodeRotateLeft(RBTreeNodeType* pNode, RBTreeHead<HeadT, IndexT>* pHead)
+	void TreeNodeRotateLeft(RBTreeNodeType* pNode, RBTreeHead<HeadT>* pHead)
 	{
 		if(!pNode || !pHead)
 			return;
 
-		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+		uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 
 		RBTreeNodeType* pRightNode = m_NodeBlockTable[pNode->Head.RightIndex];
 		if(!pRightNode)
@@ -600,12 +641,12 @@ protected:
 		pRightNode->Head.LeftIndex = nodeIndex;
 	}
 
-	void TreeNodeRotateRight(RBTreeNodeType* pNode, RBTreeHead<HeadT, IndexT>* pHead)
+	void TreeNodeRotateRight(RBTreeNodeType* pNode, RBTreeHead<HeadT>* pHead)
 	{
 		if(!pNode || !pHead)
 			return;
 
-		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
+		uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(pNode);
 
 		RBTreeNodeType* pLeftNode = m_NodeBlockTable[pNode->Head.LeftIndex];
 		if(!pLeftNode)
@@ -635,7 +676,7 @@ protected:
 
 	void PrintNode(RBTreeNodeType* node, std::vector<bool>::size_type layer, bool isRight, std::vector<bool>& flags)
 	{
-		IndexT nodeIndex = m_NodeBlockTable.GetBlockID(node);
+		uint32_t nodeIndex = m_NodeBlockTable.GetBlockID(node);
 		if(layer > 0)
 		{
 			for(uint32_t c=0; c<layer; ++c)
@@ -697,7 +738,7 @@ protected:
 		PrintNode(rightNode, layer+1, true, flags);
 	}
 
-	BlockTable<RBTreeNodeType, RBTreeHead<HeadT, IndexT>, IndexT> m_NodeBlockTable;
+	BlockTable<RBTreeNodeType, RBTreeHead<HeadT> > m_NodeBlockTable;
 };
 
 #endif // define __RBTREE_HPP__
